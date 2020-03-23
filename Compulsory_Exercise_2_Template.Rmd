@@ -1,7 +1,7 @@
 ---
 subtitle: "TMA4268 Statistical Learning V2019"
-title: "Compulsory exercise 1: Group XYZ (add your group number here)"
-author: "NN1, NN2 and NN3 (full names of all group members)"
+title: "Compulsory exercise 2: Group 31"
+author: "Ingrid Sofie Skjetne and Johannes Voll Kolstø"
 date: "`r format(Sys.time(), '%d %B, %Y')`"
 output: 
  # html_document
