@@ -84,8 +84,16 @@ gridExtra::grid.arrange(p_Private, p_Room.Board, p_Terminal, p_perc.alumni, p_Ex
                         nrow=3, ncol=2)
 ```
 
+By looking at the above plots of `Outstate` versus the six predictors `Private`, `Room.Board`, `Terminal`, `perc.alumni`, `Expend` and `Grad.Rate` there are several  interesting features present. The relationship between `Outstate` and `Terminal` seems reasonably linear and without need for a non-linear transformation, although we observe increasing variance with increasing predictor value. This also seems to be the case for the relationship between `Oustate` and the qualitative variable `Private`, as there appears to be an increase in the average `Outstate` for private colleges compared to public ones, but the variance in `Outstate` is also increased for the private colleges.  
+
+The plot of `Outstate` versus `Grad.Rate` appears to have a clear linear relationship, and the variance appears more constant over the range of `Grad.Rate` values. In comparison, the relationship between `Expend` and `Outstate` appears linear until `Expend` increases above `20 000`, after which the `Outstate` values level off and vary greatly. In such a case a non-linear transformation of `Expend` seems beneficial for regression purposes, in order to avoid many the outliers with high leverage which would appear in a linear regression.
+
+From the plot of `Outstate` versus `Terminal` it seems that there is a non-linear relationship between them. Especially the relationship between `Outstate` and the `Terminal` values for private colleges looks more quadratic than linear, and in need of a non-linear transformation. And even the public colleges appear to have a non-linear relationship between `Outstate` and `Terminal`, if not as clear.
+
+Lastly, the relationship between `Outstate` and `perc.alumni` appears weak, and therefore an overly flexible non-linear basis function might be too flexible to give good predictive results. Therefore it does not appear beneficial to apply a non-linear transform to `per.alumni` before regression onto `Outstate`.
 
 ## d)
+
 
 ## e)
 
