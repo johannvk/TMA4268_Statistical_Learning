@@ -4,10 +4,11 @@ title: "Compulsory exercise 2: Group 31"
 author: "Ingrid Sofie Skjetne and Johannes Voll Kolstø"
 date: "`r format(Sys.time(), '%d %B, %Y')`"
 output: 
- # html_document
+  #html_document
   pdf_document
+   
 ---
-  
+
 ```{r setup, include=FALSE}
 library(knitr)
 knitr::opts_chunk$set(echo = TRUE,tidy=TRUE,message=FALSE,warning=FALSE,strip.white=TRUE,prompt=FALSE,
@@ -20,29 +21,193 @@ knitr::opts_chunk$set(echo = TRUE,tidy=TRUE,message=FALSE,warning=FALSE,strip.wh
 # install.packages("ggplot2") #plotting with ggplot
 # install.packages("ggfortify")  
 # install.packages("MASS")  
-# install.packages("dplyr")  
+# install.packages("dplyr")
+#install.packages("corrplot")
 library(knitr)
 library(rmarkdown)
 library(ggplot2)
 library(ggfortify)
 library(MASS)
 library(dplyr)
+library(ISLR)
+library(leaps)
+library(glmnet)
+library(corrplot)
+
+
+set.seed(1)
 ```
 
 # Problem 1
 
 ## a)
 
+
+The ridge estimator is the value $\hat{\beta}_{R}$ that minimizes  
+\begin{align*}
+  \text{RSS} + \lambda \sum_{j=1}^p \beta_j^2 &= (y-X\beta)^\text{T}(y-X\beta) + \lambda \beta^\text{T}\beta \\
+  &= (y^\text{T} - \beta^\text{T} X^\text{T})(y-X \beta) + \lambda \beta^\text{T}\beta\\
+  &= (y^\text{T} - \beta^\text{T} X^\text{T})y - (y^\text{T} - \beta^\text{T} X^\text{T}) X\beta + \lambda \beta^\text{T}\beta\\
+  &= y^\text{T}y -\beta^\text{T}X^\text{T}y-y^\text{T}X\beta + \beta^\text{T}X^\text{T}X\beta +\lambda \beta^\text{T}\beta.\\
+\end{align*}
+
+The value above is the $\text{RSS}$ plus a term which penalizes large values of $\beta$, which forces the parameter $\beta$ to shrink. In order to find $\hat{\beta}_{R}$, we set the partial derivative of the above expression with respect to $\beta$ equal to zero.
+
+The partial derivative with respect to $\beta$ is 
+
+\begin{align*}
+&\frac{\partial}{\partial \beta} \left(  (y-X\beta)^\text{T}(y-X\beta) + \lambda \beta^\text{T}\beta  \right) \\
+=& \frac{\partial}{\partial \beta} \left(  y^\text{T}y -\beta^\text{T}X^\text{T}y-y^\text{T}X\beta + \beta^\text{T}X^\text{T}X\beta +\lambda \beta^\text{T}\beta  \right) \\
+=& -2X^\text{T}y+2X^\text{T}X\beta +2\lambda I.
+\end{align*}
+
+Setting the partial derivative equal to zero yields
+\begin{align*}
+-2X^\text{T}y+2X^\text{T}X\hat{\beta}_{R} +2\lambda I \hat{\beta}_{R} &= 0\\
+\implies -X^\text{T}y+X^\text{T}X\hat{\beta}_{R} +\lambda I\hat{\beta}_{R} &= 0 \\
+\implies X^\text{T}X\hat{\beta}_{R} +\lambda I\hat{\beta}_{R} &= X^\text{T}y \\
+\implies \hat{\beta}_{R} &= (X^\text{T}X +\lambda I)^{-1}X^\text{T}y
+\end{align*}
+
+
 ## b)
+
+
+The expected value of $\hat{\beta}_{R}$ as a function of $X$ is 
+\begin{align*}
+(X^\text{T}X +\lambda I)^{-1}X^\text{T}X\beta.
+\end{align*}
+
+
+
+The covariance matrix of the ridge estimator as a function of $X$ is 
+\begin{align*}
+&(X^\text{T}X +\lambda I)^{-1}X^\text{T} \text{Var}(Y) ((X^\text{T}X +\lambda I)^{-1}X^\text{T})^\text{T} \\
+=& (X^\text{T}X +\lambda I)^{-1}X^\text{T} \sigma^2 I ((X^\text{T}X +\lambda I)^{-1}X^\text{T})^\text{T} \\
+=& \sigma^2 (X^\text{T}X +\lambda I)^{-1}X^\text{T}  X((X^\text{T}X +\lambda I)^{-1})^\text{T} \\
+\end{align*}
+
 
 ## c)
 
+
+i. True.
+ii. False?
+iii. False.
+iv. True. 
+
+
 ## d)
+
+Splitting the `College` dataset into training data and test data.
+```{r}
+train.ind = sample(1:nrow(College), 0.5*nrow(College))
+college.train = College[train.ind, ]
+college.test = College[-train.ind, ]
+```
+
+Next, we apply forward stepwise selection to choose a model. 
+
+```{r, fig.height=7, fig.width=9}
+outstate_forw_fit = regsubsets(Outstate ~ . , nvmax = ncol(College)-1, data=College, method="forward")
+outstate_summary = summary(outstate_forw_fit)
+```
+
+
+```{r, fig.height=5, fig.width=6, fig.show="hold"}
+plot(outstate_summary$adjr2, type="l", xlab="Number of variables", ylab="Adjusted R squared")
+axis(side=1, at= c(1:17))
+plot(outstate_summary$bic, type="l", xlab="Number of variables", ylab="BIC")
+axis(side=1, at= c(1:17))
+plot(outstate_summary$cp, type="l", xlab="Number of variables", ylab="Cp")
+axis(side=1, at= c(1:17))
+```
+
+Looking at the plots displaying $R^2$, $\text{BIC}$ and $C_p$, we can see that model 7 to 11 perform quite similarily, and model 12 to 17 perform quite similarily. Therefore, it is natural to choose either model 7 or model 11, as these seem to perform well given the number of predictors used.
+
+We choose the model using 7 predictors, as this has a high adjusetd $R^2$, low $\text{BIC}$ and low $C_p$, while still having few predictors. 
+
+We extract the coefficients of model 7.
+```{r}
+coef(outstate_forw_fit, 7)
+```
+The model is 
+$$
+\begin{aligned}
+\texttt{Outstate} = &-2858.66 + 2681.26 \cdot \texttt{PrivateYes} +0.95 \cdot \texttt{Room.Board}-0.33 \cdot \texttt{Personal} \\
+&+35.95 \cdot \texttt{PhD} + 45.36\cdot\texttt{perc.alumni} +0.23 \cdot \texttt{Expend} +27.98\cdot \texttt{Grad.Rate}.
+\end{aligned}
+$$
+
+To find the MSE on the test set, we first fit a linear model using the variables in the chosen model.
+
+```{r}
+outstate_model_7 = lm(data=College, Outstate ~ Private + Room.Board + Personal + PhD + perc.alumni + Expend + Grad.Rate)
+```
+
+Now, out of state tuition for the colleges in the test set is predicted using the model.
+
+```{r}
+outstate_test_real = college.test[9]
+predicted_outstate = predict(outstate_model_7, college.test[-9])
+```
+
+Calculating the test mean squared error.
+
+```{r}
+residuals = outstate_test_real - predicted_outstate
+mse_ridge = mean(as.matrix(residuals^2))
+mse_ridge
+```
+The mean squared error on the test set is `r mse_ridge`. 
 
 ## e)
 
-## f)
+Using the Lasso method to perform model selection using the `College` dataset. 
 
-## g)
+First converting the training and test data into matrix format.
+```{r}
+college_predictors_matrix = data.matrix(college.train[-9])
+college_response_matrix = data.matrix(college.train[9])
 
-## h)
+college_predictors_test = data.matrix(college.test[-9])
+college_response_test = data.matrix(college.test[9])
+```
+
+Now using the lasso method and plotting the coefficients found vs. $\lambda$. 
+```{r, fig.height=7, fig.width=9, fig.show="hold"}
+grid = 10^seq(10, -2, length=100)
+
+lasso_college = glmnet(college_predictors_matrix, college_response_matrix, lambda=grid)
+plot(lasso_college, xvar = "lambda", label=TRUE, xlim=c(-5, 10))
+plot(lasso_college, xvar = "lambda", label=TRUE, ylim=c(0, 60), xlim=c(-5, 10))
+```
+Performing cross validation to find the best value for $\lambda$. 
+```{r, fig.height=7, fig.width=9}
+cv_outstate <- cv.glmnet(college_predictors_matrix, college_response_matrix, alpha=1, standardize=TRUE, nfolds=10)
+cv_outstate
+plot(cv_outstate)
+bestlambda = cv_outstate$lambda.min
+bestlambda
+```
+
+Using the value of $\lambda$ which was found using cross validation and finding the mean squared prediction error when using the chosen model on the test set.
+
+```{r}
+lasso_outstate_predictions = predict(lasso_college, s=bestlambda, newx=college_predictors_test)
+
+mse_lasso = mean((lasso_outstate_predictions - college_response_test)^2)
+mse_lasso
+```
+Finding the coefficients of the new model.
+
+```{r}
+lasso_coef = predict(lasso_college, type="coefficients", s=bestlambda)[1:18,]
+lasso_coef
+```
+As the above print-out shows, no predictors were removed from the model. The MSE on the test set was `r mse_lasso`. 
+
+
+
+
+
