@@ -7,6 +7,7 @@ library(MASS)
 library(dplyr)
 library(ISLR)
 library(reshape2)
+library(RColorBrewer)
 
 # Loading College data:
 set.seed(1)
@@ -30,48 +31,54 @@ p_Grad.Rate = ggplot(College_2, aes(x = Grad.Rate, y = Outstate, color=color_dat
 
 gridExtra::grid.arrange(p_Private, p_Room.Board, p_Terminal, p_perc.alumni, p_Expend, p_Grad.Rate, nrow=3, ncol=2)
 
-lm_d_list = list()
-poly_fitted_values = list()
+# Initializing storage for the polynomial regression models and predicted values:
+poly_lm_list = list()
+poly_predicted_values = list()
 poly_mse = list()
-for(i in 1:10){
+
+
+Terminal_range = range(College_2[train.ind, ]$Terminal)
+Terminal_seq = seq(from=Terminal_range[1], to=Terminal_range[2], length.out = 100)
+# Making the d_max polynomial regression models:
+d_max = 10
+for(i in 1:d_max){
   cat("i:", i, "\n")
   lm_i = lm(Outstate ~ poly(Terminal, i), data=College_2[train.ind, ])
-  lm_d_list[[i]] = lm_i
-  poly_fitted_values[[i]] = lm_i$fitted.values
-  poly_mse = sum(lm_i$residuals**2)/length(train.ind)
-  cat("RSE: ", sum(lm_d_list[[i]]$residuals**2)/length(train.ind), "\n")
+  poly_lm_list[[i]] = lm_i
+  poly_predicted_values[[i]] = predict(lm_i, newdata = list(Terminal=Terminal_seq))
+  poly_mse[[i]] = sum(lm_i$residuals**2)/length(train.ind)
+  # cat("RSE: ", sum(poly_lm_list[[i]]$residuals**2)/length(train.ind), "\n")
 }
 
-# poly_fitted_value_array = 
-Outstate_fitted_df = do.call(cbind.data.frame, poly_fitted_values)
-names(Outstate_fitted_df) = c("d=1", "d=2", "d=3", "d=4", "d=5", "d=6", "d=7", "d=8", "d=9", "d=10")
-Outstate_fitted_df$Terminal = College_2[train.ind, ]$Terminal
+Outstate_fitted_df = do.call(cbind.data.frame, poly_predicted_values)
+names(Outstate_fitted_df) = c("d1", "d2", "d3", "d4", "d5", "d6", "d7", "d8", "d9", "d10")
+Outstate_fitted_df$Terminal_seq = Terminal_seq
 
 names(Outstate_fitted_df)
 
 # Outstate_df$Terminal
 View(Outstate_fitted_df)
-head(College_2[train.ind, ])
 
+# Abandoned:
 # "melt" the dataframe:
-melted_Outstate_fitted_df = melt(Outstate_fitted_df, id.vars = "Terminal")
+# melted_Outstate_fitted_df = melt(Outstate_fitted_df, id.vars = "Terminal")
+# poly_plot = poly_plot + geom_line(data=melted_Outstate_fitted_df, aes(x=Terminal, y=value, col=variable)) + geom_line(size=1.0) + 
+#   ylab("Outstate")
 
-poly_plot = ggplot(data=College_2[train.ind, ], aes(x = Terminal, y = Outstate), type='p')
-poly_plot = poly_plot + geom_line(data=melted_Outstate_fitted_df, aes(x=Terminal, y=value, col=variable)) + geom_line(size=1.0) + 
-            ylab("Outstate")
-print(poly_plot)
+# Add the original scatter-plot data:
+col = heat.colors(10)
+poly_plot = ggplot(data=College_2[train.ind, ], aes(x = Terminal, y = Outstate)) + geom_point()
 
-# test_plot =ggplot() + 
-# print(test_plot)
-# Scatter plot of original data:
+# Manuel test av å legge til to linjer: Begge vises.
+poly_plot = poly_plot + geom_line(data=Outstate_fitted_df, aes(x=Terminal_seq, y=Outstate_fitted_df[, 1]), size=1.1, color=col[[1]])
+poly_plot = poly_plot + geom_line(data=Outstate_fitted_df, aes(x=Terminal_seq, y=Outstate_fitted_df[, 2]), size=1.1, color=col[[2]])
 
-# More manul approach:
-# Add the degree d polynomial regression lines:
-# colors = c("3300FF", "339933", "#FFCC00")
-# for (i in c(1, 2, 3)){
-#   poly_plot_df = data.frame(x_val = College_2[train.ind, ]$Terminal, y_val = lm_d_list[[i]]$fitted.values)
-#   poly_plot = poly_plot + geom_line(data = poly_plot_df, aes(x = x_val, y = y_val), color=colors[[i]], size=1.2)
-# }
+# Problematiske stedet: Får bare at den siste linjen som legges til på plottet blir igjen:
+# for(i in 1:d_max){
+#  cat("i:", i, "\n")
+#  poly_plot = poly_plot + geom_line(data=Outstate_fitted_df, aes(x=Terminal_seq, y=Outstate_fitted_df[, i]), size=1.1, color=col[[i]])
+#  print(poly_plot)
+#}
 
 print(poly_plot)
 
