@@ -65,12 +65,13 @@ print(poly_plot)
 # print(test_plot)
 # Scatter plot of original data:
 
+# More manul approach:
 # Add the degree d polynomial regression lines:
-colors = c("3300FF", "339933", "#FFCC00")
-for (i in c(1, 2, 3)){
-  poly_plot_df = data.frame(x_val = College_2[train.ind, ]$Terminal, y_val = lm_d_list[[i]]$fitted.values)
-  poly_plot = poly_plot + geom_line(data = poly_plot_df, aes(x = x_val, y = y_val), color=colors[[i]], size=1.2)
-}
+# colors = c("3300FF", "339933", "#FFCC00")
+# for (i in c(1, 2, 3)){
+#   poly_plot_df = data.frame(x_val = College_2[train.ind, ]$Terminal, y_val = lm_d_list[[i]]$fitted.values)
+#   poly_plot = poly_plot + geom_line(data = poly_plot_df, aes(x = x_val, y = y_val), color=colors[[i]], size=1.2)
+# }
 
 print(poly_plot)
 
