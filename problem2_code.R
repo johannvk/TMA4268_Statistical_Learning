@@ -6,6 +6,7 @@ library(ggfortify)
 library(MASS)
 library(dplyr)
 library(ISLR)
+library(reshape2)
 
 # Loading College data:
 set.seed(1)
@@ -30,17 +31,48 @@ p_Grad.Rate = ggplot(College_2, aes(x = Grad.Rate, y = Outstate, color=color_dat
 gridExtra::grid.arrange(p_Private, p_Room.Board, p_Terminal, p_perc.alumni, p_Expend, p_Grad.Rate, nrow=3, ncol=2)
 
 lm_d_list = list()
+poly_fitted_values = list()
+poly_mse = list()
 for(i in 1:10){
   cat("i:", i, "\n")
-  lm_d_list[[i]] = lm(Outstate ~ poly(Terminal, i), data=College_2[train.ind, ])
+  lm_i = lm(Outstate ~ poly(Terminal, i), data=College_2[train.ind, ])
+  lm_d_list[[i]] = lm_i
+  poly_fitted_values[[i]] = lm_i$fitted.values
+  poly_mse = sum(lm_i$residuals**2)/length(train.ind)
   cat("RSE: ", sum(lm_d_list[[i]]$residuals**2)/length(train.ind), "\n")
 }
 
-length(train.ind)
-print(class(list_models[[1]]))
-View(lm_d_list)
-summary(lm_d_list[[3]])
-summary(lm_d_list[[4]])
+# poly_fitted_value_array = 
+Outstate_fitted_df = do.call(cbind.data.frame, poly_fitted_values)
+names(Outstate_fitted_df) = c("d=1", "d=2", "d=3", "d=4", "d=5", "d=6", "d=7", "d=8", "d=9", "d=10")
+Outstate_fitted_df$Terminal = College_2[train.ind, ]$Terminal
+
+names(Outstate_fitted_df)
+
+# Outstate_df$Terminal
+View(Outstate_fitted_df)
+head(College_2[train.ind, ])
+
+# "melt" the dataframe:
+melted_Outstate_fitted_df = melt(Outstate_fitted_df, id.vars = "Terminal")
+
+poly_plot = ggplot(data=College_2[train.ind, ], aes(x = Terminal, y = Outstate), type='p')
+poly_plot = poly_plot + geom_line(data=melted_Outstate_fitted_df, aes(x=Terminal, y=value, col=variable)) + geom_line(size=1.0) + 
+            ylab("Outstate")
+print(poly_plot)
+
+# test_plot =ggplot() + 
+# print(test_plot)
+# Scatter plot of original data:
+
+# Add the degree d polynomial regression lines:
+colors = c("3300FF", "339933", "#FFCC00")
+for (i in c(1, 2, 3)){
+  poly_plot_df = data.frame(x_val = College_2[train.ind, ]$Terminal, y_val = lm_d_list[[i]]$fitted.values)
+  poly_plot = poly_plot + geom_line(data = poly_plot_df, aes(x = x_val, y = y_val), color=colors[[i]], size=1.2)
+}
+
+print(poly_plot)
 
 # TODO:
 # Plot the results. Big plot, with 10 lines on might be messy. Maybe do d = 1, 2, 3, 6, 8, 10. A bit more pleasant to look at?
