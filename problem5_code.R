@@ -1,37 +1,6 @@
----
-subtitle: "TMA4268 Statistical Learning V2019"
-title: "Compulsory exercise 2: Group 31"
-author: "Ingrid Sofie Skjetne and Johannes Voll Kolst√∏"
-date: "`r format(Sys.time(), '%d %B, %Y')`"
-output: 
- # html_document
-  pdf_document
----
-  
-```{r setup, include=FALSE}
-library(knitr)
-knitr::opts_chunk$set(echo = TRUE,tidy=TRUE,message=FALSE,warning=FALSE,strip.white=TRUE,prompt=FALSE,
-                      cache=TRUE, size="scriptsize",fig.width=4, fig.height=3)
-```
-
-```{r rpackages,eval=TRUE,echo=FALSE}
-# install.packages("knitr") #probably already installed
-# install.packages("rmarkdown") #probably already installed
-# install.packages("ggplot2") #plotting with ggplot
-# install.packages("ggfortify")  
-# install.packages("MASS")  
-# install.packages("dplyr")  
-library(knitr)
-library(rmarkdown)
+# Require libraries:
 library(ggplot2)
-library(ggfortify)
-library(MASS)
-library(dplyr)
 library(dendextend)
-```
-
-# Problem 5
-```{r, eval=TRUE, echo=TRUE}
 
 # Load data:
 id <- "1VfVCQvWt121UN39NXZ4aR9Dmsbj-p9OU"  # google file ID
@@ -43,11 +12,13 @@ row.names(GeneData) = paste(rep("G", 1000), c(1:1000), sep = "")
 
 # Get the transpose of the data.frame in order to have observations as rows:
 GeneData = t(GeneData)
-```
 
+# summary(GeneData)
+# View(GeneData)
+# head(GeneData)
 
-## a)
-```{r, eval=TRUE, echo=TRUE, fig.height=5, fig.width=10, fig.show="hold"}
+### a) Plot the Euclidiean and Correlation Dendrograms. ###
+
 label_colors = c("red", "blue")  # Disease- and Healthy-color.
 colorLeaf = function(n){
   if (is.leaf(n)){
@@ -59,6 +30,7 @@ colorLeaf = function(n){
     else {  # Found a healthy node
       color = label_colors[[2]]
     }
+    # print(a)
     attr(n, "nodePar") = c(a$nodePar, lab.col=color)
   }
   return(n)
@@ -81,8 +53,7 @@ dend_Euclid_single = dendrapply(dend_Euclid_single, colorLeaf)
 
 # Plot with colored leaf nodes:
 par(mfrow=c(1, 3))
-plot(dend_Euclid_complete, main="Complete Grouping", ylim=c(38, 52),
-     ylab="Dissimillar Euclidian Height")
+plot(dend_Euclid_complete, main="Complete Grouping", ylim=c(38, 52), ylab="Dissimillar Euclidian Height")
 plot(dend_Euclid_average, main="Average Grouping", ylim=c(38, 50))
 plot(dend_Euclid_single, main="Single Grouping", ylim=c(38, 47))
 ### TODO: Nevne i teksten i .Rmd-dokumentet at Blue: Frisk, Red: Syk.
@@ -103,24 +74,26 @@ dend_Corr_single = as.dendrogram(hc_Corr_single, hang=0.1)
 dend_Corr_single = dendrapply(dend_Corr_single, colorLeaf)
 
 par(mfrow=c(1, 3))
-plot(dend_Corr_complete, main="Complete Grouping", ylim=c(0.4, 1.2), 
-     ylab="Dissimillar Correlation Height")
+plot(dend_Corr_complete, main="Complete Grouping", ylim=c(0.4, 1.2), ylab="Dissimillar Correlation Height")
 plot(dend_Corr_average, main="Average Grouping", ylim=c(0.5, 1.05))
 plot(dend_Corr_single, main="Single Grouping", ylim=c(0.5, 1.0))
-```
-In the above plots, all leaf-nodes have been colored according to their true class, as either blue for healthy, or red for diseased. And simply by looking at the dendrograms for the `GeneData` it seems that the Euclidian dissimilarity measure does a better job of seperating the two different classes, the Healthy and Diseased patients. we will investigate this more quantitatively in the next sub-problem.
-
-## b)
 
 
-## c)
+### b) Use the dendrograms to cluster the tissues into two groups:
 
-## d)
+# Lage funksjo for Â gÂ gjennom "cut"-objektene og finne hvor mange som var riktig klassifisert, 
+# og hvor mange som ble "false positive"/"falske negative".
 
-## e)
+Euclid_complete_cut = cutree(hc_Euclid_complete, k=2)
+Euclid_average_cut = cutree(hc_Euclid_average, k=2)
+Euclid_single_cut = cutree(hc_Euclid_single, k=2)
 
-## f)
+names(Euclid_average_cut)
 
-## g)
 
-## h)
+Corr_complete_cut = cutree(hc_Corr_complete, k=2)
+Corr_average_cut = cutree(hc_Corr_average, k=2)
+Corr_single_cut = cutree(hc_Corr_single, k=2)
+
+Corr_single_cut
+
