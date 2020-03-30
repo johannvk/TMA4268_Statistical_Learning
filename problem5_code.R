@@ -81,19 +81,81 @@ plot(dend_Corr_single, main="Single Grouping", ylim=c(0.5, 1.0))
 
 ### b) Use the dendrograms to cluster the tissues into two groups:
 
-# Lage funksjo for å gå gjennom "cut"-objektene og finne hvor mange som var riktig klassifisert, 
+# Lage funksjon for å gå gjennom "cut"-objektene og finne hvor mange som var riktig klassifisert, 
 # og hvor mange som ble "false positive"/"falske negative".
 
+tree_confusion_matrix = function(cut_list){
+  tissues = names(cut_list)
+  groups = matrix(rep(0L, 4), nrow=2, ncol=2)
+  # Count groups of Healthy and Disease tissues:
+  # Group:  Healthy  Disease
+  #     1         X        X
+  #     2         X        X
+  for (i in 1:length(cut_list)) {
+    # Place the classified group in correct slot in matrix:
+    if(substring(tissues[[i]], 1, 1) == "H") {  # Found a Healthy Leaf.
+      col = 1
+      row = cut_list[[i]]
+      groups[[row, col]] = groups[[row, col]] + 1
+    }
+    else{  # Found a Disease Leaf. 
+      col = 2
+      row = cut_list[[i]]
+      groups[[row, col]] = groups[[row, col]] + 1
+    }
+  }
+  # Find which of the two groups have the maximum healthy- and 
+  # disease- labels, and name that the corresponding prediction.
+  health_group = 0L; disease_group = 0L
+  max_healthy = which.max(groups[, 1])
+  if (groups[[max_healthy, 2]] <= groups[[max_healthy, 1]]){
+    health_group = max_healthy
+    disease_group = (max_healthy %% 2) + 1L
+  }
+  else{
+    disease_group = max_healthy
+    health_group = (max_healthy %% 2) + 1L
+  }
+  confusion_matrix = matrix(rep(0L, 4), nrow=2, ncol=2)
+  # Fill inn the Health column:
+  confusion_matrix[[1, 1]] = groups[[health_group, 1]]
+  confusion_matrix[[2, 1]] = groups[[disease_group, 1]]
+  # Fill in the Disease column:
+  confusion_matrix[[1, 2]] = groups[[health_group, 2]]
+  confusion_matrix[[2, 2]] = groups[[disease_group, 2]]
+  colnames(confusion_matrix) = c("Healthy, Actual", "Disease, Actual")
+  rownames(confusion_matrix) = c("Healthy, Pred.", "Disease, Pred.")
+  return(confusion_matrix)
+}
+
+# Find Euclidian cuts:
 Euclid_complete_cut = cutree(hc_Euclid_complete, k=2)
 Euclid_average_cut = cutree(hc_Euclid_average, k=2)
 Euclid_single_cut = cutree(hc_Euclid_single, k=2)
 
-names(Euclid_average_cut)
+# Generate Euclidian confusion matrices:
+Euclid_complete_cm = tree_confusion_matrix(Euclid_complete_cut)
+Euclid_average_cm = tree_confusion_matrix(Euclid_average_cut)
+Euclid_single_cm = tree_confusion_matrix(Euclid_single_cut)
+
+cat("Euclidian Confusion matrices:\n")
+print(Euclid_complete_cm)
+print(Euclid_average_cm)
+print(Euclid_single_cm)
 
 
+# Find Correlation cuts:
 Corr_complete_cut = cutree(hc_Corr_complete, k=2)
 Corr_average_cut = cutree(hc_Corr_average, k=2)
 Corr_single_cut = cutree(hc_Corr_single, k=2)
 
-Corr_single_cut
+# Generate correlation confusion matrices:
+Corr_complete_cm = tree_confusion_matrix(Corr_complete_cut)
+Corr_average_cm = tree_confusion_matrix(Corr_average_cut)
+Corr_single_cm = tree_confusion_matrix(Corr_single_cut)
+
+cat("Correlation Confusion matrices:\n")
+print(Corr_complete_cm)
+print(Corr_average_cm)
+print(Corr_single_cm)
 
