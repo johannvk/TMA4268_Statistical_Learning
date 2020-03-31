@@ -27,22 +27,221 @@ library(ggplot2)
 library(ggfortify)
 library(MASS)
 library(dplyr)
+library(ISLR)
+library(GGally)
+library(corrplot)
+library(e1071)
+set.seed(1)
 ```
 
 # Problem 4
 
 ## a)
+Loading the dataset.
+```{r}
+id <- "1Fv6xwKLSZHldRAC1MrcK2mzdOYnbgv0E"  # google file ID
+d.diabetes <- dget(sprintf("https://docs.google.com/uc?id=%s&export=download", 
+    id))
+d.train = d.diabetes$ctrain
+d.test = d.diabetes$ctest
+```
+
+Multiple choice questions:
+
+i. True.
+ii. True.
+iii. True.
+iv. True.
+
+
 
 ## b)
 
+Converting the response variable to a factor.
+```{r}
+d.train$diabetes <- as.factor(d.train$diabetes)
+d.test$diabetes <- as.factor(d.test$diabetes)
+diab_test_predictors = d.test[-1]
+diab_test_responses = d.test[1]
+```
+
+
+Using cross-validation to find a good value of `cost` for a support vector classifier.
+
+```{r}
+set.seed(1)
+cv_svc = tune(svm, diabetes ~ ., data=d.train, kernel="linear", ranges=list(cost=c(0.001, 0.01, 0.1, 1, 5, 10, 100)))
+best_cost = cv_svc$best.parameters
+```
+Cross validation gave `r best_cost` as the optimal value of `cost`.
+
+Fitting a support vector classifier. 
+```{r}
+diab_svc = svm(data=d.train, diabetes ~ ., kernel="linear", cost=best_cost, scale=FALSE)
+```
+
+ 
+Fitting a support vector machine with radial boundary. First using cross validation to find parameteres $\gamma$ and cost. 
+
+```{r}
+gammas = 10^seq(-7, 1, length=9)
+
+cv_svm = tune(svm, diabetes~., kernel="radial", ranges=list(cost=c(0.001, 0.01, 0.1, 1, 5, 10, 100), gamma=gammas), data=d.train)
+
+best_cost_svm = cv_svm$best.parameters[1]
+best_gamma = cv_svm$best.parameters[2]
+diab_svm = cv_svm$best.model
+```
+
+The best performance was achieved with a cost of `r best_cost_svm` and $\gamma=$ `r best_gamma`. 
+
+
+
+Making predictions on the test set using support vector classifier, and creating the confusion matrix.
+```{r}
+diab_svc_predictions = predict(diab_svc, diab_test_predictors)
+table_df_svc = data.frame("prediction"= diab_svc_predictions, "actual"=d.test$diabetes)
+confusion_svc = table("Predictions"=table_df_svc$prediction, "Actual"=table_df_svc$actual)
+```
+
+
+Making predictions on the test set using support vector machine, and creating the confusion matrix.
+```{r}
+diab_svm_predictions = predict(diab_svm, diab_test_predictors)
+table_df_svm = data.frame("prediction"= diab_svm_predictions, "actual"=d.test$diabetes)
+confusion_svm = table("Predictions"=table_df_svm$prediction, "Actual"=table_df_svm$actual)
+```
+
+
+Get misclassification rates and print confusion matrices.
+
+```{r, results="hold"}
+misclass_svc = mean(table_df_svc$prediction != table_df_svc$actual)
+misclass_svm = mean(table_df_svm$prediction != table_df_svm$actual)
+
+confusion_svc
+confusion_svm
+
+```
+The misclassification rates were `r misclass_svc`for the support vector classifier, and `r misclass_svm`for the support vector machine.
+
+
+Finding the specificity and sensitivity of the two models when used on the test set. 
+
+```{r}
+sensitivity_svc = confusion_svc[2, 2]/(confusion_svc[1,2] + confusion_svc[2,2])
+specificity_svc = confusion_svc[1, 1]/(confusion_svc[1,1] + confusion_svc[2,1])
+
+sensitivity_svm = confusion_svm[2, 2]/(confusion_svm[1,2] + confusion_svm[2,2])
+specificity_svm = confusion_svm[1, 1]/(confusion_svm[1,1] + confusion_svm[2,1])
+
+sensitivity_svc
+specificity_svc
+
+sensitivity_svm
+specificity_svm
+
+```
+
+The sensitivities of both models are quite low. If the models are to be used for prediction, one would want a high sensitivity considering the negative consequences of undiagnosed diabetes on a person's health. The support vector classfier, which has a linear kernel, performed slightly better than the support vector machine with a radial kernel.
+
+The support vector machine had a higher specificity, however we would prefer using the support vector classifier.
+
+
 ## c)
+Here we assume that a classifier which makes it possible to see which variables affect the chance of a woman having diabetes is preferred. 
+
+We pick logistic regression, as it gives interpretable results, does not assume normal distribution or equal variances, and does not assume equal number of datapoints in each class. 
+
+
+Fitting a logistic regression model to the training data.
+```{r}
+logreg_diab = glm(data=d.train, diabetes~., family="binomial")
+```
+
+Making predictionson the test set and creating the confusion table.
+```{r}
+logreg_pred = predict(logreg_diab, newdata=d.test, type="response")
+logreg_classification = logreg_pred > 0.5
+
+confusion_logreg = table("Prediction"=logreg_classification, "Actual"=d.test$diabetes==1)
+confusion_logreg
+```
+
+
+Calculating sensitivity and specificity of logistic regression.
+
+```{r}
+sensitivity_logreg = confusion_logreg[2, 2]/(confusion_logreg[1,2] + confusion_logreg[2,2])
+sensitivity_logreg
+
+
+specificity_logreg = confusion_logreg[1, 1]/(confusion_logreg[1,1] + confusion_logreg[2,1])
+specificity_logreg
+```
+
+
+Calculating misclassification rate.
+
+```{r}
+mean(logreg_classification*1 != d.test$diabetes)
+```
+
+
+
 
 ## d)
+i.
+ii. 
+iii.
+iv. 
+
 
 ## e)
 
-## f)
 
-## g)
 
-## h)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
