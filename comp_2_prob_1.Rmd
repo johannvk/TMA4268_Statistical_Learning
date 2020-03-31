@@ -61,7 +61,7 @@ The partial derivative with respect to $\beta$ is
 =& -2X^\text{T}y+2X^\text{T}X\beta +2\lambda I.
 \end{align*}
 
-Setting the partial derivative equal to zero yields
+Setting the partial derivative equal to zero in order to find the minimizer yields
 \begin{align*}
 -2X^\text{T}y+2X^\text{T}X\hat{\beta}_{R} +2\lambda I \hat{\beta}_{R} &= 0\\
 \implies -X^\text{T}y+X^\text{T}X\hat{\beta}_{R} +\lambda I\hat{\beta}_{R} &= 0 \\
@@ -84,7 +84,7 @@ The covariance matrix of the ridge estimator as a function of $X$ is
 \begin{align*}
 &(X^\text{T}X +\lambda I)^{-1}X^\text{T} \text{Var}(Y) ((X^\text{T}X +\lambda I)^{-1}X^\text{T})^\text{T} \\
 =& (X^\text{T}X +\lambda I)^{-1}X^\text{T} \sigma^2 I ((X^\text{T}X +\lambda I)^{-1}X^\text{T})^\text{T} \\
-=& \sigma^2 (X^\text{T}X +\lambda I)^{-1}X^\text{T}  X((X^\text{T}X +\lambda I)^{-1})^\text{T} \\
+=& \sigma^2 (X^\text{T}X +\lambda I)^{-1}X^\text{T}  X((X^\text{T}X +\lambda I)^{-1})^\text{T}. \\
 \end{align*}
 
 
@@ -92,7 +92,7 @@ The covariance matrix of the ridge estimator as a function of $X$ is
 
 
 i. True.
-ii. False?
+ii. False.
 iii. False.
 iv. True. 
 
@@ -115,99 +115,94 @@ outstate_summary = summary(outstate_forw_fit)
 
 
 ```{r, fig.height=5, fig.width=6, fig.show="hold"}
-plot(outstate_summary$adjr2, type="l", xlab="Number of variables", ylab="Adjusted R squared")
-axis(side=1, at= c(1:17))
 plot(outstate_summary$bic, type="l", xlab="Number of variables", ylab="BIC")
 axis(side=1, at= c(1:17))
-plot(outstate_summary$cp, type="l", xlab="Number of variables", ylab="Cp")
-axis(side=1, at= c(1:17))
+which.min(outstate_summary$bic)
 ```
 
-Looking at the plots displaying $R^2$, $\text{BIC}$ and $C_p$, we can see that model 7 to 11 perform quite similarily, and model 12 to 17 perform quite similarily. Therefore, it is natural to choose either model 7 or model 11, as these seem to perform well given the number of predictors used.
+Looking at the plot displaying $\text{BIC}$, we can see that model 13 has the lowest $\text{BIC}$. 
 
-We choose the model using 7 predictors, as this has a high adjusetd $R^2$, low $\text{BIC}$ and low $C_p$, while still having few predictors. 
 
-We extract the coefficients of model 7.
+We extract the coefficients of model 13.
 ```{r}
-coef(outstate_forw_fit, 7)
+coef(outstate_forw_fit, 13)
 ```
 The model is 
+
 $$
 \begin{aligned}
-\texttt{Outstate} = &-2858.66 + 2681.26 \cdot \texttt{PrivateYes} +0.95 \cdot \texttt{Room.Board}-0.33 \cdot \texttt{Personal} \\
-&+35.95 \cdot \texttt{PhD} + 45.36\cdot\texttt{perc.alumni} +0.23 \cdot \texttt{Expend} +27.98\cdot \texttt{Grad.Rate}.
+\texttt{Outstate} = &-1892.08 + 2265.83 \cdot \texttt{PrivateYes} - 0.28 \cdot \texttt{Apps} + 0.72 \cdot \texttt{Accept} + 22.46 \cdot \texttt{Top10perc} - 0.168 \cdot \texttt{F.Undergrad} + 0.89 \cdot \texttt{Room.Board}-0.25 \cdot \texttt{Personal} \\
+&+12.81 \cdot \texttt{PhD} + 23.65 \cdot \texttt{Terminal} -46.94 \cdot \texttt{S.F.Ratio} - 41.01\cdot\texttt{perc.alumni} + 0.20 \cdot \texttt{Expend} + 23.63\cdot \texttt{Grad.Rate}.
 \end{aligned}
 $$
 
 To find the MSE on the test set, we first fit a linear model using the variables in the chosen model.
 
 ```{r}
-outstate_model_7 = lm(data=College, Outstate ~ Private + Room.Board + Personal + PhD + perc.alumni + Expend + Grad.Rate)
+outstate_model_13 = lm(data=College, Outstate ~ Private + Apps + Accept + Top10perc + F.Undergrad + Room.Board + Personal + PhD + Terminal + S.F.Ratio + perc.alumni + Expend + Grad.Rate)
 ```
 
 Now, out of state tuition for the colleges in the test set is predicted using the model.
 
 ```{r}
 outstate_test_real = college.test[9]
-predicted_outstate = predict(outstate_model_7, college.test[-9])
+predicted_outstate = predict(outstate_model_13, college.test[-9])
 ```
 
 Calculating the test mean squared error.
 
 ```{r}
 residuals = outstate_test_real - predicted_outstate
-mse_ridge = mean(as.matrix(residuals^2))
-mse_ridge
+mse_forw = mean(as.matrix(residuals^2))
+mse_forw
 ```
-The mean squared error on the test set is `r mse_ridge`. 
+The mean squared error on the test set is `r mse_forw`. 
 
 ## e)
 
-Using the Lasso method to perform model selection using the `College` dataset. 
+Now we will use the Lasso method to perform model selection using the `College` dataset. 
 
-First converting the training and test data into matrix format.
+First we convert the training and test data into matrix format.
 ```{r}
-college_predictors_matrix = data.matrix(college.train[-9])
-college_response_matrix = data.matrix(college.train[9])
+college_predictors_train = data.matrix(college.train[-9])
+college_response_train = data.matrix(college.train[9])
 
 college_predictors_test = data.matrix(college.test[-9])
 college_response_test = data.matrix(college.test[9])
 ```
 
-Now using the lasso method and plotting the coefficients found vs. $\lambda$. 
-```{r, fig.height=7, fig.width=9, fig.show="hold"}
-grid = 10^seq(10, -2, length=100)
 
-lasso_college = glmnet(college_predictors_matrix, college_response_matrix, lambda=grid)
-plot(lasso_college, xvar = "lambda", label=TRUE, xlim=c(-5, 10))
-plot(lasso_college, xvar = "lambda", label=TRUE, ylim=c(0, 60), xlim=c(-5, 10))
-```
 Performing cross validation to find the best value for $\lambda$. 
 ```{r, fig.height=7, fig.width=9}
-cv_outstate <- cv.glmnet(college_predictors_matrix, college_response_matrix, alpha=1, standardize=TRUE, nfolds=10)
+set.seed(1)
+cv_outstate <- cv.glmnet(college_predictors_train, college_response_train, alpha=1, standardize=TRUE, nfolds=10)
 cv_outstate
 plot(cv_outstate)
-bestlambda = cv_outstate$lambda.min
-bestlambda
 ```
 
-Using the value of $\lambda$ which was found using cross validation and finding the mean squared prediction error when using the chosen model on the test set.
+The above plot shows that the value of $\lambda$ which minimizes the $\text{MSE}$ (shown as the leftmost vertical dotted line) does not remove any predictors from the model. While a low $\text{MSE}$ is desirable, so is a simplified model. The other value of $\lambda$ which is highlighted with a dotted line in the plot is `lambda.1se`. This value of $\lambda$ gives a slightly higher $\text{MSE}$, however, it only uses $9$ out of $17$ variables, thus greatly simplifying the model. 
+
+However, we can see that allowing just one extra variable, giving a total of 10 predictors, the $\text{MSE}$ can be brought much closer to its minimum. We will use this model. 
 
 ```{r}
-lasso_outstate_predictions = predict(lasso_college, s=bestlambda, newx=college_predictors_test)
+# Finding index of the last model to have 10 variables, meaning the one with the smallest MSE.
+lambda_index = Position(function(x){x == 10}, cv_outstate$nzero, right=TRUE)
+bestlambda = cv_outstate$lambda[lambda_index]
+```
 
+Now we find the test $\text{MSE}$ obtained when using our chosen $\lambda$. 
+
+```{r}
+lasso_college = glmnet(college_predictors_train, college_response_train, lambda=bestlambda)
+lasso_outstate_predictions = predict(lasso_college, s=bestlambda, newx=college_predictors_test)
 mse_lasso = mean((lasso_outstate_predictions - college_response_test)^2)
 mse_lasso
 ```
 Finding the coefficients of the new model.
 
 ```{r}
-lasso_coef = predict(lasso_college, type="coefficients", s=bestlambda)[1:18,]
-lasso_coef
+coef(lasso_college)
 ```
-As the above print-out shows, no predictors were removed from the model. The MSE on the test set was `r mse_lasso`. 
-
-
-
+The variables that were selected were `Private`, `Top10perc`, `Room.Board`, `Personal`, `PhD`, `Terminal`, `S.F.Ratio`, `perc.alumni`, `Expend` and `Grad.Rate`. 
 
 
