@@ -45,7 +45,7 @@ Terminal_range = range(College_2$Terminal)
 Terminal_seq = seq(from=Terminal_range[1], to=Terminal_range[2], length.out = 100)
 d_max = 10
 for(i in 1:d_max){
-  cat("i:", i, "\n")
+  # cat("i:", i, "\n")
   lm_i = lm(Outstate ~ poly(Terminal, i), data=College_2)
   poly_predicted_values[[i]] = predict(lm_i, newdata = list(Terminal=Terminal_seq))
   poly_mse[[i]] = sum(lm_i$residuals**2)/length(train.ind)
