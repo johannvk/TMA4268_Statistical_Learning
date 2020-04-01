@@ -196,7 +196,7 @@ Looking at the optimization problem that we need to solve for Principal Componen
 
 In this problem, $\phi$ is a unit length vector in $\mathbb{R}^p$, describing the weigthed sum of covariates with the greatest variance. This means that $p$ is the number of covariates, or predictive variables, excluding the intercept. In PCA it is also not uncommon to standardize measurements to have zero mean and variance one, to avoid inflation of variance in certain directions of the covariate-space due to different units being used for measurement and the like. Naturally from this explanation, $n$ is the number of measurements of the $p$ covariates. 
 
-This problem can be framed in terms of matrices to gain additional insight. For a given set of $p$ covariates $x = [x_1, x_2, ..., x_p]^T$ and $n$ measurements gathered in an $n\times p$ data matrix $X$, that has been standardized to have zero means and variance one along its columns, we can construct the positive semi-definite empirical correlation matrix between these covariates as $C = \frac{1}{n}X^T X$. Then we have that the weighted sum of covariates $\phi^T x$ with the greatest variance, is the eigenvector of $C$ with the greatest eigenvalue $\lambda_1$. This due to the fact that Var$(\phi^T x)$ = $\phi^T \text{Var}(x)\phi$ = $\phi^T C \phi$, and this scalar is maxmized for $C\phi = \lambda_1\phi$ when $C$ is positive semidefinite and $||\phi||_2 = 1$.
+This problem can be framed in terms of matrices to gain additional insight. For a given set of $p$ covariates $x = [x_1, x_2, ..., x_p]^T$ and $n$ measurements gathered in an $n\times p$ data matrix $X$, that has been standardized to have zero means and variance one along its columns, we can construct the positive semi-definite empirical correlation matrix between these covariates as $C = \frac{1}{n-1}X^T X$. Then we have that the weighted sum of covariates $\phi^T x$ with the greatest variance, is the eigenvector of $C$ with the greatest eigenvalue $\lambda_1$. This due to the fact that Var$(\phi^T x)$ = $\phi^T \text{Var}(x)\phi$ = $\phi^T C \phi$, and this scalar is maxmized for $C\phi = \lambda_1\phi$ when $C$ is positive semidefinite and $||\phi||_2 = 1$.
 
 Now given that a solution vector $\phi$ to the above optimization problem has been found, the first principal component scores are defined as 
 
@@ -206,7 +206,7 @@ $$
 
 
 ## d)
-```{r, eval=TRUE, echo=TRUE, fig.height=5, fig.width=10, fig.show="hold", results="hold"}
+```{r, eval=TRUE, echo=TRUE, fig.height=4, fig.width=8, fig.show="hold", results="hold"}
 cat("Range of means for gene expressions:\n", range(apply(GeneData, 2, mean)), "\n")
 cat("Range of variance for gene expressions:\n", range(apply(GeneData, 2, var)), "\n")
 
@@ -232,7 +232,7 @@ We observe a clear seperation of the the two different tissue types from the sca
 The amount of variance explained by the first five PC's is found to be $21.1\%$ when rounded to one digit. 
 
 ## e)
-```{r, eval=TRUE, echo=TRUE, fig.height=5, fig.width=10, fig.show="hold", results="hold"}
+```{r, eval=TRUE, echo=TRUE, results="hold"}
 #  Construct imperical Correlation matrix for GeneData:
 # First scale to zero mean and variance one:
 scaled_GeneData = scale(GeneData)
@@ -240,7 +240,6 @@ scaled_Corr = (1.0/(nrow(GeneData)-1))*(t(scaled_GeneData) %*% scaled_GeneData)
 
 # Retrieve the first column of the rotation matrix, the first eigenvector of scaled_Corr:
 phi_1 = pca_GeneData$rotation[, 1]
-# View(phi_1)
 
 n = 150
 reduced_phi_1 = rep(0.0, ncol(scaled_GeneData))
@@ -249,18 +248,25 @@ reduced_phi_1[maxn_var_indices] = phi_1[maxn_var_indices]
 
 reduced_var_proportion = (t(reduced_phi_1) %*% scaled_Corr %*% reduced_phi_1) / sum(pca_GD_var)
 
-cat("Proportion of variance explained by the", n, "highest magnintude components of PC1:\n", reduced_var_proportion, "\n")
+cat("Proportion of variance explained by the", n, "highest magnintude components of PC1:\n",
+    reduced_var_proportion, "\n")
 cat("These genes are:\n")
-print(names(phi_1[maxn_var_indices][1:10])) 
+print(names(phi_1[maxn_var_indices])) 
 ```
-# By using only 150 out of 1000 genes in the first PCA, we account for 4.8% of
-# the variation in the GeneData.
-# This is more than half of the variance explained by PC1 when using all 1000 genes.
 
-# Account for most variation in the region [500, 600], with a few around [10, 20].
+By using only 150 out of 1000 the thousand measured genes in the first PC, we account for 4.8% of the variation in the scaled GeneData. This is more than half of the variance explained by PC1 when using all 1000 genes, and thus indicates that we have found a subset of genes which vary across the two   tissue groups. The top 10 genes that account for the most variation are G502, G589, G565, G590, G600, G551, G593, G538, G584 and G509. These are all in the range G-[502, 600].
+
 
 ## f)
 
-## g)
+```{r, eval=TRUE, echo=TRUE, fig.height=4, fig.width=8, fig.show="hold", results="hold"}
+kmeans_GeneData = kmeans(GeneData, centers=2, nstart=20)
+pcs_df$cluster = as.factor(kmeans_GeneData$cluster)
 
-## h)
+#  Zero error-rate by K-means clustering:
+k_means_plot = ggplot(pcs_df, aes(x=PC1, y=PC2, shape=cluster, color=tissue)) + geom_point(size=3.0) + 
+                      labs(title="GeneData, PC1 vs. PC2. Cluster 1 and 2 from K-means")
+print(k_means_plot)
+```
+From the above plot where tissue type is denoted by color, and cluster from the K-means algorithm is denoted as different symbols, we see that the error rate for K-means when it comes to seperating the two tissue types is $0\%$.
+

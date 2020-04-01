@@ -199,49 +199,29 @@ iv.
 
 ## e)
 
+The binomial deviance for an observation $i$, $D_i$ is defined as 
+$$
+D_i = -2\text{log}\left(p_i^{I[y_i = 1]}(1- p_i)^{I[y_i = -1]}\right), \quad I[y_i = \pm1] = \begin{cases} \pm1, \quad y_i = \pm 1,\\ 0, \quad \text{otherwise}.  \end{cases}
+$$
+where we have coded the realizations of the random variable $Y_i$ as class $1$ if $y_i = 1$ and class $2$ if $y_i = -1$.  
+For simplicity we will work with the scaled version $D_i/2 = -I[y_i=1]\text{log}(p_i) - I[y_i = -1]\text{log}(1 - p_i)$. 
 
+In the logistic model, the probability $\text{Pr}(Y_i = 1) = p_i = \frac{\text{exp}(f(x_i))}{1 + \text{exp}(f(x_i))}$, 
+and correspondingly $\text{Pr}(Y_i = -1) = 1 - p_i = \frac{1}{1 + \text{exp}(f(x_i))}$. 
+In the regular logistic model, $f$ is linear in $x$ along with a constant term, giving $f(x) = \beta_0 + \beta^Tx$.
 
+We find that 
+\begin{align*}
+\text{log}(p_i) &= f(x_i) - \text{log}(1 + \text{exp}(f(x_i)))\\
+                &= f(x_i) - [\text{log}(1 + \text{exp}(-f(x_i))~) + f(x_i)]\\
+                &= -\text{log}(1 + \text{exp}(-f(x_i))).
+\end{align*}
 
+and $\text{log}(1- p_i) = -\text{log}(1 + \text{exp}(f(x_i))~)$. 
+Here we have used the identity $\text{log}(1 + \text{exp}(u)) = \text{log}(1 + \text{exp}(-u)) + u$.
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+Thus we can conclude that 
+$$
+D_i/2 = I[y_i=1]\text{log}(1 + \text{exp}(f(x_i))~) + I[y_i=-1]\text{log}(1 + \text{exp}(f(x_i))~) = \text{log}(1 + \text{exp}(-y_if(x_i))~).
+$$
+This last equation shows that the loss function $\text{log}(1 + \text{exp}(-y_if(x_i))~)$ represents a scaled deviance for the $y = -1, 1$ encoding of a logistic regression model.
