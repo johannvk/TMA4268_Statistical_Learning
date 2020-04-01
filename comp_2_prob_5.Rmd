@@ -188,10 +188,76 @@ print(Corr_single_cm)
 ```
 
 ## c)
+Looking at the optimization problem that we need to solve for Principal Component Analysis (PCA) we have
+
+\begin{equation*}
+\max_{\phi_{11},...,\phi_{p1}} \Big\{ \frac{1}{n}\sum_{i=1}^n \Big( \sum_{j=1}^p \phi_{j1}x_{ij} \Big)^2  \Big\} \quad \text{subject to } \sum_{j=1}^p\phi_{j1}^2 = 1.
+\end{equation*}
+
+In this problem, $\phi$ is a unit length vector in $\mathbb{R}^p$, describing the weigthed sum of covariates with the greatest variance. This means that $p$ is the number of covariates, or predictive variables, excluding the intercept. In PCA it is also not uncommon to standardize measurements to have zero mean and variance one, to avoid inflation of variance in certain directions of the covariate-space due to different units being used for measurement and the like. Naturally from this explanation, $n$ is the number of measurements of the $p$ covariates. 
+
+This problem can be framed in terms of matrices to gain additional insight. For a given set of $p$ covariates $x = [x_1, x_2, ..., x_p]^T$ and $n$ measurements gathered in an $n\times p$ data matrix $X$, that has been standardized to have zero means and variance one along its columns, we can construct the positive semi-definite empirical correlation matrix between these covariates as $C = \frac{1}{n}X^T X$. Then we have that the weighted sum of covariates $\phi^T x$ with the greatest variance, is the eigenvector of $C$ with the greatest eigenvalue $\lambda_1$. This due to the fact that Var$(\phi^T x)$ = $\phi^T \text{Var}(x)\phi$ = $\phi^T C \phi$, and this scalar is maxmized for $C\phi = \lambda_1\phi$ when $C$ is positive semidefinite and $||\phi||_2 = 1$.
+
+Now given that a solution vector $\phi$ to the above optimization problem has been found, the first principal component scores are defined as 
+
+$$
+z_{i1} = X_{i1}\phi_{11} + X_{i2}\phi_{21} + ... + x_{ip}\phi_{p1}, \quad i \in [1, n].  
+$$
+
 
 ## d)
+```{r, eval=TRUE, echo=TRUE, fig.height=5, fig.width=10, fig.show="hold", results="hold"}
+cat("Range of means for gene expressions:\n", range(apply(GeneData, 2, mean)), "\n")
+cat("Range of variance for gene expressions:\n", range(apply(GeneData, 2, var)), "\n")
+
+pca_GeneData = prcomp(GeneData, center=T, scale=T)
+
+pcs_df = as.data.frame(pca_GeneData$x)
+pcs_df$tissue = c(rep("H", 20), rep("D", 20))
+
+pca_plot = ggplot(data=pcs_df, aes(x=PC1, y=PC2, color=tissue)) + geom_point(size=3.0) +
+           labs(title="GeneData, PC2 versus PC1, Healthy and Disease Tissue")
+print(pca_plot)
+
+# Find porportion of variance explained:
+pca_GD_var = pca_GeneData$sdev^2
+variance_portion = pca_GD_var/sum(pca_GD_var)
+print("Proportion of Variance explained by first five principal components:")
+print(sum(variance_portion[1:5]))
+```
+In performing principal component analysis on our `GenaData` dataset we have chosen to normalize the covariates to have zero mean and variance one. This is done even thoughpresumably gene expression is measured in the same units for different genes, as we see some spread in the means and variance of the gene expression of different genes, as shown in the code printout above.
+
+We observe a clear seperation of the the two different tissue types from the scatter plot of principal component 1 (PC1) versus pricipal component 2 (PC2), suggesting that PC1 captures an important seperating line in the space of the thousand gene expressions measured.
+
+The amount of variance explained by the first five PC's is found to be $21.1\%$ when rounded to one digit. 
 
 ## e)
+```{r, eval=TRUE, echo=TRUE, fig.height=5, fig.width=10, fig.show="hold", results="hold"}
+#  Construct imperical Correlation matrix for GeneData:
+# First scale to zero mean and variance one:
+scaled_GeneData = scale(GeneData)
+scaled_Corr = (1.0/(nrow(GeneData)-1))*(t(scaled_GeneData) %*% scaled_GeneData)
+
+# Retrieve the first column of the rotation matrix, the first eigenvector of scaled_Corr:
+phi_1 = pca_GeneData$rotation[, 1]
+# View(phi_1)
+
+n = 150
+reduced_phi_1 = rep(0.0, ncol(scaled_GeneData))
+maxn_var_indices = order(abs(phi_1), decreasing = T)[1:n]
+reduced_phi_1[maxn_var_indices] = phi_1[maxn_var_indices]
+
+reduced_var_proportion = (t(reduced_phi_1) %*% scaled_Corr %*% reduced_phi_1) / sum(pca_GD_var)
+
+cat("Proportion of variance explained by the", n, "highest magnintude components of PC1:\n", reduced_var_proportion, "\n")
+cat("These genes are:\n")
+print(names(phi_1[maxn_var_indices][1:10])) 
+```
+# By using only 150 out of 1000 genes in the first PCA, we account for 4.8% of
+# the variation in the GeneData.
+# This is more than half of the variance explained by PC1 when using all 1000 genes.
+
+# Account for most variation in the region [500, 600], with a few around [10, 20].
 
 ## f)
 

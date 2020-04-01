@@ -81,7 +81,7 @@ plot(dend_Corr_single, main="Single Grouping", ylim=c(0.5, 1.0))
 
 ### b) Use the dendrograms to cluster the tissues into two groups:
 
-# Lage funksjon for å gå gjennom "cut"-objektene og finne hvor mange som var riktig klassifisert, 
+# Lage funksjon for ? g? gjennom "cut"-objektene og finne hvor mange som var riktig klassifisert, 
 # og hvor mange som ble "false positive"/"falske negative".
 
 tree_confusion_matrix = function(cut_list){
@@ -159,3 +159,75 @@ print(Corr_complete_cm)
 print(Corr_average_cm)
 print(Corr_single_cm)
 
+### d) PCA of GeneData:
+# Looks good to center the gene-expressions and normalize to std.dev. = 1.
+# Then we get separation as [-10, 10] in PC1. Very nice!
+# Can explain that this was done as there was some difference accross gene 
+# expressions in mean and variance:
+cat("Range of means for gene expressions:\n", range(apply(GeneData, 2, mean)), "\n")
+cat("Range of variance for gene expressions:\n", range(apply(GeneData, 2, var)), "\n")
+
+# View(GeneData)
+# dim(GeneData)
+pca_GeneData = prcomp(GeneData, center=T, scale=T)
+
+# names(pca_GeneData)
+# dim(pca_GeneData$x)
+# typeof(pca_GeneData$x)
+
+pcs_df = as.data.frame(pca_GeneData$x)
+pcs_df$tissue = c(rep("H", 20), rep("D", 20))
+View(pcs_df)
+
+pca_plot = ggplot(data=pcs_df, aes(x=PC1, y=PC2, color=tissue)) + geom_point(size=3.0) +
+           labs(title="GeneData, PC2 versus PC1, Healthy and Disease Tissue")
+print(pca_plot)
+# Nice plot!
+
+# Find porportion of variance explained:
+pca_GD_var = pca_GeneData$sdev^2
+variance_portion = pca_GD_var/sum(pca_GD_var)
+cat("Variance portions from PCA:\n")
+print(variance_portion)
+
+print("Proportion of Variance explained by first five principal components:")
+print(sum(variance_portion[1:5]))
+
+
+### e) Use PCA to find which genes vary the most across the two groups:
+# No idea. Use which genes have high weightings in the first principal component, which
+# has a fifth of the variance? That seems reasonable, as it divides the two types of genes?
+
+#  Construct imperical Correlation matrix for GeneData:
+# First scale to zero mean and variance one:
+scaled_GeneData = scale(GeneData)
+scaled_Corr = (1.0/(nrow(GeneData)-1))*(t(scaled_GeneData) %*% scaled_GeneData)
+
+# Retrieve the first column of the rotation matrix, witht the first eigenvector of Corr:
+phi_1 = pca_GeneData$rotation[, 1]
+# View(phi_1)
+
+n = 150
+reduced_phi_1 = rep(0.0, ncol(scaled_GeneData))
+maxn_var_indices = order(abs(phi_1), decreasing = T)[1:n]
+reduced_phi_1[maxn_var_indices] = phi_1[maxn_var_indices]
+
+reduced_var_proportion = (t(reduced_phi_1) %*% scaled_Corr %*% reduced_phi_1) / sum(pca_GD_var)
+
+# By using only 150 out of 1000 genes in the first PCA, we account for 4.8% of the variation in the GeneData.
+# This is more than half of the variance explained by PC1 when using all 1000 genes.
+
+cat("Proportion of variance explained by the", n, "highest magnintude components of PC1:", reduced_var_proportion)
+cat("These genes are:\n")
+print(names(phi_1[maxn_var_indices]))  # Mostly in the region [500, 600], with a few around [10, 20].
+
+
+### f) K-means to seperate the data into two groups. Find the error rate.
+
+kmeans_GeneData = kmeans(GeneData, centers=2, nstart=20)
+pcs_df$cluster = as.factor(kmeans_GeneData$cluster)
+
+#  Zero error-rate by K-means clustering:
+k_means_plot = ggplot(pcs_df, aes(x=PC1, y=PC2, shape=cluster, color=tissue)) + geom_point(size=3.0) +
+       labs(title="GeneData, PC1 vs. PC2. Cluster 1 and 2 from K-means")
+print(k_means_plot)

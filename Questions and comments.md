@@ -47,3 +47,8 @@ What are they asking for?
 
 # 5.
 
+### e)
+How to say which genes vary most across the two groups? 
+Have used the genes for which the coefficients in PC1 is greatest in magnitude, as PC1 clearly seperates the two tissue groups.
+The proportion of variance explained by e.g. the 200 coefficients with greatest magnitude is not much greater than 5.5%. ???
+Still a valid approach?
