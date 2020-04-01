@@ -27,22 +27,63 @@ library(ggplot2)
 library(ggfortify)
 library(MASS)
 library(dplyr)
+library(tree)
+library(randomForest)
+library(gbm)
+library(ISLR)
+library(caret)
+set.seed(1)
 ```
 
 # Problem 3
 
 ## a)
+i. False.
+ii. True.
+iii. True.
+iv. False.
 
 ## b)
 
+Loading dataset.
+
+```{r}
+train.ind = sample(1:nrow(College), 0.5*nrow(College))
+college.train = College[train.ind, ]
+college.test = College[-train.ind, ]
+```
+
+We will create a random forest model to predict the out-of-state tuition variable `Outstate`. First, we find the `mtry` parameter using cross validation.
+```{r}
+set.seed(1)
+control <- trainControl(method="cv", number=10, search="grid")
+
+
+tunegrid <- expand.grid(.mtry = (1:17)) 
+rf_gridsearch <- train(Outstate ~ ., 
+                       data = college.train,
+                       method = 'rf',
+                       metric = 'RMSE',
+                       tuneGrid = tunegrid,
+                       trControl=control)
+best_mtry = unlist(rf_gridsearch$bestTune)
+best_mtry
+```
+
+
+The best value for`mtry` was found to be `best_mtry`. Fitting a random forest model to the training set using the value of `mtry` found using cross validation.
+
+```{r}
+rf_college = randomForest(Outstate~., data=college.train, mtry=best_mtry,  ntree=500, importance=TRUE)
+rf_college
+plot(rf_college)
+```
+
+Random forest improves on a single pruned regression tree and on bagging by using many trees that are decorrelated by introducing a random limitation on which splits can be made in each tree. Compared to boosting, a random forest model has few tuning parameters. We need only tune `mtry`, the number of possible parameters the model can use in each split in the tree. In boosting, there are three tuning parameters: the number of trees, the shrinkage parameter, and the number of splits in each tree. 
+
+A disadvantage of random forest is that it is less intuitive and interpretable than a single pruned decision tree. However, compared to boosting, there is no large difference in interpretability. 
+
+
+
 ## c)
 
-## d)
-
-## e)
-
-## f)
-
-## g)
-
-## h)
