@@ -45,7 +45,7 @@ Terminal_range = range(College_2$Terminal)
 Terminal_seq = seq(from=Terminal_range[1], to=Terminal_range[2], length.out = 100)
 d_max = 10
 for(i in 1:d_max){
-  cat("i:", i, "\n")
+  # cat("i:", i, "\n")
   lm_i = lm(Outstate ~ poly(Terminal, i), data=College_2)
   poly_predicted_values[[i]] = predict(lm_i, newdata = list(Terminal=Terminal_seq))
   poly_mse[[i]] = sum(lm_i$residuals**2)/length(train.ind)
@@ -84,8 +84,11 @@ print(poly_plot)
 # Use cubic splines, with uniformly spaced knots.
 
 # Performs LOOCV by setting cv=T:
+set.seed(123)  #  Setting seed once more.
 smooth_spline_model = smooth.spline(x = College_2$Expend, y = College_2$Outstate, cv=T)
 smooth_predict = predict(smooth_spline_model,College_2$Expend)
+
+cat("Smoothing spline degrees of freedom:", smooth_spline_model$df)
 
 length(College_2$Expend)
 length(smooth_predict$y)

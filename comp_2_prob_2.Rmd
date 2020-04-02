@@ -28,6 +28,9 @@ library(ggfortify)
 library(MASS)
 library(dplyr)
 library(ISLR)
+library(RColorBrewer)
+library(splines)
+library(caret)
 ```
 
 # Problem 2
@@ -39,7 +42,7 @@ iii) True
 iv) True
 
 ## b)
-The basis functions for a cubic spline with knots at the qaurtiles $q_1, q_2, q_3$ of variable $X$ are $\{1, X, X^2, X^3, h(X, q_1),  h(X, q_2), h(X, q_3)\}$,
+The basis functions for a cubic spline with knots at the qaurtiles $q_1,~ q_2,~ q_3$ of variable $X$ are $\{1,~X,~X^2,~X^3,~h(X, q_1),~h(X, q_2),~h(X, q_3)\}$,
 where the functions $h(X, q_i)$ are truncated third power functions of $X$, allowing for discontinuities in the third derivative at the knots. They are defined as
 $$h(X, q_i) = 
 \begin{cases}
@@ -57,12 +60,10 @@ set.seed(1)
 train.ind = sample(1:nrow(College), 0.5 * nrow(College))
 college.train = College[train.ind, ]
 college.test = College[-train.ind, ]
-# str(College)
 
 predictors = c("Private", "Room.Board", "Terminal", "perc.alumni", "Expend", "Grad.Rate")
 response = c("Outstate")
-College_2 = select(College, predictors, response)
-names(College_2)
+College_2 = select(college.train, predictors, response)
 
 # Generating the six plots of the response Outstate versus the six predictors:
 color_data = College_2$Private
@@ -80,8 +81,8 @@ p_Grad.Rate = ggplot(College_2, aes(x = Grad.Rate, y = Outstate, color=color_dat
   geom_point() + theme(legend.position="none")
 
 # Plotting the six plots in a 3X2-grid:
-gridExtra::grid.arrange(p_Private, p_Room.Board, p_Terminal, p_perc.alumni, p_Expend, p_Grad.Rate, 
-                        nrow=3, ncol=2)
+gridExtra::grid.arrange(p_Private, p_Room.Board, p_Terminal, p_perc.alumni, 
+                        p_Expend, p_Grad.Rate, nrow=3, ncol=2)
 ```
 
 By looking at the above plots of `Outstate` versus the six predictors `Private`, `Room.Board`, `Terminal`, `perc.alumni`, `Expend` and `Grad.Rate` there are several  interesting features present. The relationship between `Outstate` and `Terminal` seems reasonably linear and without need for a non-linear transformation, although we observe increasing variance with increasing predictor value. This also seems to be the case for the relationship between `Oustate` and the qualitative variable `Private`, as there appears to be an increase in the average `Outstate` for private colleges compared to public ones, but the variance in `Outstate` is also increased for the private colleges.  
@@ -92,13 +93,70 @@ From the plot of `Outstate` versus `Terminal` it seems that there is a non-linea
 
 Lastly, the relationship between `Outstate` and `perc.alumni` appears weak, and therefore an overly flexible non-linear basis function might be too flexible to give good predictive results. Therefore it does not appear beneficial to apply a non-linear transform to `per.alumni` before regression onto `Outstate`.
 
+
 ## d)
+```{r task2d_1, eval=TRUE, echo=TRUE, fig.width=6, fig.height=5, fig.show="hold", results="hold"}
+# Initializing storage for the polynomial regression models and predicted values:
+poly_predicted_values = list()
+poly_mse = list()
 
+# Making the d_max polynomial regression models and find their prediction on a 
+# sequence of Terminal values:
+Terminal_range = range(College_2$Terminal)
+Terminal_seq = seq(from=Terminal_range[1], to=Terminal_range[2], length.out = 200)
+d_max = 10
+for(i in 1:d_max){
+  lm_i = lm(Outstate ~ poly(Terminal, i), data=College_2)
+  poly_predicted_values[[i]] = predict(lm_i, newdata = list(Terminal=Terminal_seq))
+  poly_mse[[i]] = sum(lm_i$residuals**2)/length(train.ind)
+}
+# Buil a dataframe out of the predicted values from the polynomial regression:
+Outstate_fitted_df = do.call(cbind.data.frame, poly_predicted_values)
+names(Outstate_fitted_df) = c("d1", "d2", "d3", "d4", "d5", "d6", "d7", "d8", "d9", "d10")
+Outstate_fitted_df$Terminal_seq = Terminal_seq
 
-## e)
+# Plot a few of the polynomial fits along with the original data:
+col = brewer.pal(n=8, name="Dark2")
+poly_plot = ggplot(data = Outstate_fitted_df, aes(x = Terminal_seq)) + 
+            geom_point(data=College_2, aes(x = Terminal, y=Outstate), color="blue") +
+            xlab("Terminal")
+str_degrees = names(Outstate_fitted_df)[1:10]
+poly_plot = poly_plot +
+      geom_line(aes(x = Terminal_seq, y = d1, colour="d1"), size=1.1) + 
+      geom_line(aes(x = Terminal_seq, y = d2, colour="d2"), size=1.1) +
+      geom_line(aes(x = Terminal_seq, y = d5, colour="d5"), size=1.1) +
+      geom_line(aes(x = Terminal_seq, y = d7, colour="d7"), size=1.1) +
+      geom_line(aes(x = Terminal_seq, y = d10, colour="d10"), size=1.1) +
+      scale_colour_manual("",
+                          breaks = c("d1", "d2", "d5", "d7", "d10"),
+                          values = c("d1"=col[[1]], "d2"=col[[2]], "d5"=col[[3]], 
+                                     "d7"=col[[4]], "d10"=col[[5]])) +
+      labs(title="Polynomial Regression, Outstate ~ Terminal")
+print(poly_plot)
+```
 
-## f)
+```{r task2d_2, eval=TRUE, echo=TRUE, fig.width=6, fig.height=5, fig.show="hold", results="hold"}
+# Performs LOOCV for degrees of freedom by setting cv=T:
+set.seed(123)  # Setting seed once more:
+smooth_spline_model = smooth.spline(x = College_2$Expend, y = College_2$Outstate, cv=T)
+smooth_predict = predict(smooth_spline_model,College_2$Expend)
 
-## g)
+smooth_df = do.call(data.frame, smooth_predict)
+smooth_plot = ggplot(data=College_2, aes(x=Expend, y=Outstate)) + geom_point(size=1.1, col="blue") 
+smooth_plot = smooth_plot +
+              geom_line(data=smooth_df, aes(x=x, y=y, color="Smoothing\n spline"), size=1.1) +
+              scale_color_manual("", values = c("Smoothing\n spline" = "red")) + 
+              labs(title="Smoothing Splines, Outstate ~ Expend")
+print(smooth_plot)
 
-## h)
+# Find the polynomial regression with the lowest MSE:
+min_poly_MSE = do.call(min, poly_mse)
+smoothing_MSE = mean((College_2$Outstate - smooth_predict$y)^2)
+```
+
+In the scatter plot of `Outstate` versus `Terminal` we have overlaid some of the polynomial regression lines for degrees $d = 1, ..., 10$. We observe increased twisting of the higher order polynomial regressions, but the second degree polynomial regression seems visually to fit closer to the data over a greater portion of the range of the covariate without suffering from too much flexibility.
+
+For the smoothing spline of `Outstate` versus `Expend` the degrees of freedom were chosen thorugh LOOCV, performed internally in the `smooth.spline` function by setting `cv=T`. This resulted in `r round(smooth_spline_model$df, 3)` degrees of freedom. 
+
+The lowest MSE for the polynomial regression of `Outstate` onto `Terminal` comes from the highest degree $d=10$, as expected by the increased flexibility, and comes out to `r min_poly_MSE`. For the smoothing spline regression of `Outstate` onto `Expend`, the MSE is `r smoothing_MSE`. 
+The fact that the MSE for `Outstate` onto `Terminal` using polynomial regression is more than three times greater than that of `Outstate` onto `Expend` using smoothing splines is not very surprising. Firstly, the correlation between `Outstate` and `Terminal` appears much lower than that of `Oustate` and `Expend`, indicating that regression lines would do better in the latter case. And secondly, smoothing splines have the ability to fit the data more locally than global polynomial regression can, and therefore one might expect a lower MSE from smoothing spline regression than from global polynomial regression. 
