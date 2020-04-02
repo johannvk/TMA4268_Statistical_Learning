@@ -81,9 +81,6 @@ plot(dend_Corr_single, main="Single Grouping", ylim=c(0.5, 1.0))
 
 ### b) Use the dendrograms to cluster the tissues into two groups:
 
-# Lage funksjon for ? g? gjennom "cut"-objektene og finne hvor mange som var riktig klassifisert, 
-# og hvor mange som ble "false positive"/"falske negative".
-
 tree_confusion_matrix = function(cut_list){
   tissues = names(cut_list)
   groups = matrix(rep(0L, 4), nrow=2, ncol=2)

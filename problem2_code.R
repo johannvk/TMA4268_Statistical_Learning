@@ -84,8 +84,11 @@ print(poly_plot)
 # Use cubic splines, with uniformly spaced knots.
 
 # Performs LOOCV by setting cv=T:
+set.seed(123)  #  Setting seed once more.
 smooth_spline_model = smooth.spline(x = College_2$Expend, y = College_2$Outstate, cv=T)
 smooth_predict = predict(smooth_spline_model,College_2$Expend)
+
+cat("Smoothing spline degrees of freedom:", smooth_spline_model$df)
 
 length(College_2$Expend)
 length(smooth_predict$y)
