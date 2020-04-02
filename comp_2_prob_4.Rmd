@@ -37,14 +37,6 @@ set.seed(1)
 # Problem 4
 
 ## a)
-Loading the dataset.
-```{r}
-id <- "1Fv6xwKLSZHldRAC1MrcK2mzdOYnbgv0E"  # google file ID
-d.diabetes <- dget(sprintf("https://docs.google.com/uc?id=%s&export=download", 
-    id))
-d.train = d.diabetes$ctrain
-d.test = d.diabetes$ctest
-```
 
 Multiple choice questions:
 
@@ -56,6 +48,15 @@ iv. True.
 
 
 ## b)
+Loading the dataset.
+```{r}
+id <- "1Fv6xwKLSZHldRAC1MrcK2mzdOYnbgv0E"  # google file ID
+d.diabetes <- dget(sprintf("https://docs.google.com/uc?id=%s&export=download", 
+    id))
+d.train = d.diabetes$ctrain
+d.test = d.diabetes$ctest
+```
+
 
 Converting the response variable to a factor.
 ```{r}
@@ -67,10 +68,9 @@ diab_test_responses = d.test[1]
 
 
 Using cross-validation to find a good value of `cost` for a support vector classifier.
-
 ```{r}
-set.seed(1)
-cv_svc = tune(svm, diabetes ~ ., data=d.train, kernel="linear", ranges=list(cost=c(0.001, 0.01, 0.1, 1, 5, 10, 100)))
+costs = c(0.001, 0.01, 0.1, 1, 5, 10, 100)
+cv_svc = tune(svm, diabetes ~ ., data=d.train, kernel="linear", ranges=list(cost=costs))
 best_cost = cv_svc$best.parameters
 ```
 Cross validation gave `r best_cost` as the optimal value of `cost`.
@@ -81,12 +81,10 @@ diab_svc = svm(data=d.train, diabetes ~ ., kernel="linear", cost=best_cost, scal
 ```
 
  
-Fitting a support vector machine with radial boundary. First using cross validation to find parameteres $\gamma$ and cost. 
-
+Fitting a support vector machine with radial boundary. First using cross validation to find parameters $\gamma$ and cost. 
 ```{r}
 gammas = 10^seq(-7, 1, length=9)
-
-cv_svm = tune(svm, diabetes~., kernel="radial", ranges=list(cost=c(0.001, 0.01, 0.1, 1, 5, 10, 100), gamma=gammas), data=d.train)
+cv_svm = tune(svm, diabetes~., kernel="radial", ranges=list(cost=costs, gamma=gammas), data=d.train)
 
 best_cost_svm = cv_svm$best.parameters[1]
 best_gamma = cv_svm$best.parameters[2]
@@ -96,25 +94,21 @@ diab_svm = cv_svm$best.model
 The best performance was achieved with a cost of `r best_cost_svm` and $\gamma=$ `r best_gamma`. 
 
 
-
-Making predictions on the test set using support vector classifier, and creating the confusion matrix.
+Making predictions on the test set using the support vector classifier, and creating the confusion matrix.
 ```{r}
 diab_svc_predictions = predict(diab_svc, diab_test_predictors)
 table_df_svc = data.frame("prediction"= diab_svc_predictions, "actual"=d.test$diabetes)
 confusion_svc = table("Predictions"=table_df_svc$prediction, "Actual"=table_df_svc$actual)
 ```
 
-
-Making predictions on the test set using support vector machine, and creating the confusion matrix.
+Making predictions on the test set using the support vector machine, and creating the confusion matrix.
 ```{r}
 diab_svm_predictions = predict(diab_svm, diab_test_predictors)
 table_df_svm = data.frame("prediction"= diab_svm_predictions, "actual"=d.test$diabetes)
 confusion_svm = table("Predictions"=table_df_svm$prediction, "Actual"=table_df_svm$actual)
 ```
 
-
 Get misclassification rates and print confusion matrices.
-
 ```{r, results="hold"}
 misclass_svc = mean(table_df_svc$prediction != table_df_svc$actual)
 misclass_svm = mean(table_df_svm$prediction != table_df_svm$actual)
@@ -123,12 +117,11 @@ confusion_svc
 confusion_svm
 
 ```
-The misclassification rates were `r misclass_svc`for the support vector classifier, and `r misclass_svm`for the support vector machine.
-
+The misclassification rates were `r misclass_svc` for the support vector classifier, and `r misclass_svm`for the support vector machine.
 
 Finding the specificity and sensitivity of the two models when used on the test set. 
 
-```{r}
+```{r, results="hold"}
 sensitivity_svc = confusion_svc[2, 2]/(confusion_svc[1,2] + confusion_svc[2,2])
 specificity_svc = confusion_svc[1, 1]/(confusion_svc[1,1] + confusion_svc[2,1])
 
@@ -143,23 +136,20 @@ specificity_svm
 
 ```
 
-The sensitivities of both models are quite low. If the models are to be used for prediction, one would want a high sensitivity considering the negative consequences of undiagnosed diabetes on a person's health. The support vector classfier, which has a linear kernel, performed slightly better than the support vector machine with a radial kernel.
+The sensitivities of both models are quite low. If the models are to be used for prediction, one would want a high sensitivity considering that undiagnosed diabetes has negative consequences on a person's health. The support vector classfier, which has a linear kernel, performed slightly better than the support vector machine with a radial kernel.
 
 The support vector machine had a higher specificity, however we would prefer using the support vector classifier.
 
 
 ## c)
-Here we assume that a classifier which makes it possible to see which variables affect the chance of a woman having diabetes is preferred. 
-
-We pick logistic regression, as it gives interpretable results, does not assume normal distribution or equal variances, and does not assume equal number of datapoints in each class. 
-
+Here we assume that a classifier which makes it possible to see which variables affect the chance of a woman having diabetes is preferred. We pick logistic regression, as it gives interpretable results, does not assume normal distribution or equal variances, and does not assume equal number of datapoints in each class. 
 
 Fitting a logistic regression model to the training data.
 ```{r}
 logreg_diab = glm(data=d.train, diabetes~., family="binomial")
 ```
 
-Making predictionson the test set and creating the confusion table.
+Making predictions on the test set and creating the confusion table.
 ```{r}
 logreg_pred = predict(logreg_diab, newdata=d.test, type="response")
 logreg_classification = logreg_pred > 0.5
@@ -170,11 +160,9 @@ confusion_logreg
 
 
 Calculating sensitivity and specificity of logistic regression.
-
-```{r}
+```{r, results="hold"}
 sensitivity_logreg = confusion_logreg[2, 2]/(confusion_logreg[1,2] + confusion_logreg[2,2])
 sensitivity_logreg
-
 
 specificity_logreg = confusion_logreg[1, 1]/(confusion_logreg[1,1] + confusion_logreg[2,1])
 specificity_logreg
@@ -186,25 +174,29 @@ Calculating misclassification rate.
 ```{r}
 mean(logreg_classification*1 != d.test$diabetes)
 ```
+Logistic regression has the advantage over SVMs that it gives an estimate of the probability of an observation belonging to a class, rather than just a predicted class. 
 
+A disadvantage of logistic regression is that it is more sensitive to outliers. Support vector machines are not sensitive to outliers since these often end up not affecting the decision boundary since they are not among the support vectors.
 
+Support vector machines are also at an advantage when the classes are well separated, as logistic regression runs into problems here. 
 
 
 ## d)
-i.
-ii. 
-iii.
-iv. 
+i. False.
+ii. False.
+iii. True.
+iv. True.
 
 
 ## e)
 
 The binomial deviance for an observation $i$, $D_i$ is defined as 
 $$
-D_i = -2\text{log}\left(p_i^{I[y_i = 1]}(1- p_i)^{I[y_i = -1]}\right), \quad I[y_i = \pm1] = \begin{cases} \pm1, \quad y_i = \pm 1,\\ 0, \quad \text{otherwise}.  \end{cases}
+D_i = -2\text{ log}\left(p_i^{I[y_i = 1]}(1- p_i)^{I[y_i = -1]}\right), \quad I[y_i = c] = \begin{cases} 1, \quad y_i = c,\\ 0, \quad \text{otherwise}.  \end{cases}
 $$
-where we have coded the realizations of the random variable $Y_i$ as class $1$ if $y_i = 1$ and class $2$ if $y_i = -1$.  
-For simplicity we will work with the scaled version $D_i/2 = -I[y_i=1]\text{log}(p_i) - I[y_i = -1]\text{log}(1 - p_i)$. 
+
+where $p_i$ is the probability of observation $i$ belonging to the class $y_i = 1$, and we have coded the realizations of the random variable $Y_i$ as class $1$ if $y_i = 1$ and class $2$ if $y_i = -1$.  
+For simplicity we will work with the scaled version $D_i/2 = -I[y_i=1]\text{ log}(p_i) - I[y_i = -1]\text{ log}(1 - p_i)$. 
 
 In the logistic model, the probability $\text{Pr}(Y_i = 1) = p_i = \frac{\text{exp}(f(x_i))}{1 + \text{exp}(f(x_i))}$, 
 and correspondingly $\text{Pr}(Y_i = -1) = 1 - p_i = \frac{1}{1 + \text{exp}(f(x_i))}$. 
@@ -222,6 +214,6 @@ Here we have used the identity $\text{log}(1 + \text{exp}(u)) = \text{log}(1 + \
 
 Thus we can conclude that 
 $$
-D_i/2 = I[y_i=1]\text{log}(1 + \text{exp}(f(x_i))~) + I[y_i=-1]\text{log}(1 + \text{exp}(f(x_i))~) = \text{log}(1 + \text{exp}(-y_if(x_i))~).
+D_i/2 = I[y_i=1]\text{ log}(1 + \text{exp}(f(x_i))~) + I[y_i=-1]\text{ log}(1 + \text{exp}(f(x_i))~) = \text{log}(1 + \text{exp}(-y_if(x_i))~).
 $$
 This last equation shows that the loss function $\text{log}(1 + \text{exp}(-y_if(x_i))~)$ represents a scaled deviance for the $y = -1, 1$ encoding of a logistic regression model.

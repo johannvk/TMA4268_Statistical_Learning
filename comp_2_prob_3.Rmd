@@ -58,8 +58,7 @@ We will create a random forest model to predict the out-of-state tuition variabl
 set.seed(1)
 control <- trainControl(method="cv", number=10, search="grid")
 
-
-tunegrid <- expand.grid(.mtry = (1:17)) 
+tunegrid = data.frame("mtry"=c(1:17))
 rf_gridsearch <- train(Outstate ~ ., 
                        data = college.train,
                        method = 'rf',
@@ -67,23 +66,41 @@ rf_gridsearch <- train(Outstate ~ .,
                        tuneGrid = tunegrid,
                        trControl=control)
 best_mtry = unlist(rf_gridsearch$bestTune)
-best_mtry
 ```
 
 
-The best value for`mtry` was found to be `best_mtry`. Fitting a random forest model to the training set using the value of `mtry` found using cross validation.
+The best value for`mtry` was found to be `best_mtry`. Now we fit a random forest model to the training set using the value of `mtry` found using cross validation, and find the test MSE.
 
 ```{r}
 rf_college = randomForest(Outstate~., data=college.train, mtry=best_mtry,  ntree=500, importance=TRUE)
-rf_college
-plot(rf_college)
+rf_predicts = predict(rf_college, newdata=college.test[-9])
+mse_rf = mean(as.matrix((college.test[9]-rf_predicts))^2)
 ```
+The test MSE was `r mse_rf`. 
 
-Random forest improves on a single pruned regression tree and on bagging by using many trees that are decorrelated by introducing a random limitation on which splits can be made in each tree. Compared to boosting, a random forest model has few tuning parameters. We need only tune `mtry`, the number of possible parameters the model can use in each split in the tree. In boosting, there are three tuning parameters: the number of trees, the shrinkage parameter, and the number of splits in each tree. 
+The random forest model was chosen for its accuracy, not for interpretability. It improves on a single pruned regression tree and on bagging by using many trees that are decorrelated by introducing a random limitation on which splits can be made in each tree.
+ompared to boosting, a random forest model has few tuning parameters. We need only tune `mtry`, the number of possible parameters the model can use in each split in the tree. In boosting, there are three tuning parameters: the number of trees, the shrinkage parameter, and the number of splits in each tree. 
 
-A disadvantage of random forest is that it is less intuitive and interpretable than a single pruned decision tree. However, compared to boosting, there is no large difference in interpretability. 
+A disadvantage of random forest is that it is less intuitive and interpretable than a single pruned decision tree. However, compared to boosting, there is no large difference in interpretability. It is more time consuming to construct and tune the model than to construct a single decision tree, however at this scale it does not take more than a few minutes, which is reasonable. 
 
 
 
 ## c)
+Comparing the MSEs of the methods used in problem 1 and 3. The MSEs were `r mse_forw` for forward selection, `r mse_lasso` for the Lasso and `r mse_rf` for the random forest model. 
+
+
+Random forest gives the lower test error by a large margin, however for interpretability either Lasso or forward selection would be preferred. The model found using the Lasso method has the fewest predictors, and so is the easiest to interpret among the two. 
+
+
+
+
+
+
+
+
+
+
+
+
+
 

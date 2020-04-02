@@ -42,8 +42,7 @@ set.seed(1)
 
 ## a)
 
-
-The ridge estimator is the value $\hat{\beta}_{R}$ that minimizes  
+The ridge estimator is the value $\hat{\beta}_{R}$ of $\beta$ that minimizes  
 \begin{align*}
   \text{RSS} + \lambda \sum_{j=1}^p \beta_j^2 &= (y-X\beta)^\text{T}(y-X\beta) + \lambda \beta^\text{T}\beta \\
   &= (y^\text{T} - \beta^\text{T} X^\text{T})(y-X \beta) + \lambda \beta^\text{T}\beta\\
@@ -51,10 +50,7 @@ The ridge estimator is the value $\hat{\beta}_{R}$ that minimizes
   &= y^\text{T}y -\beta^\text{T}X^\text{T}y-y^\text{T}X\beta + \beta^\text{T}X^\text{T}X\beta +\lambda \beta^\text{T}\beta.\\
 \end{align*}
 
-The value above is the $\text{RSS}$ plus a term which penalizes large values of $\beta$, which forces the parameter $\beta$ to shrink. In order to find $\hat{\beta}_{R}$, we set the partial derivative of the above expression with respect to $\beta$ equal to zero.
-
-The partial derivative with respect to $\beta$ is 
-
+The value above is the $\text{RSS}$ plus a term which penalizes large values of $\beta$, which forces the parameter $\beta$ to shrink. In order to find the minimizer $\hat{\beta}_{R}$, we set the partial derivative of the above expression with respect to $\beta$ equal to zero. The partial derivative with respect to $\beta$ is 
 \begin{align*}
 &\frac{\partial}{\partial \beta} \left(  (y-X\beta)^\text{T}(y-X\beta) + \lambda \beta^\text{T}\beta  \right) \\
 =& \frac{\partial}{\partial \beta} \left(  y^\text{T}y -\beta^\text{T}X^\text{T}y-y^\text{T}X\beta + \beta^\text{T}X^\text{T}X\beta +\lambda \beta^\text{T}\beta  \right) \\
@@ -66,21 +62,19 @@ Setting the partial derivative equal to zero in order to find the minimizer yiel
 -2X^\text{T}y+2X^\text{T}X\hat{\beta}_{R} +2\lambda I \hat{\beta}_{R} &= 0\\
 \implies -X^\text{T}y+X^\text{T}X\hat{\beta}_{R} +\lambda I\hat{\beta}_{R} &= 0 \\
 \implies X^\text{T}X\hat{\beta}_{R} +\lambda I\hat{\beta}_{R} &= X^\text{T}y \\
-\implies \hat{\beta}_{R} &= (X^\text{T}X +\lambda I)^{-1}X^\text{T}y
+\implies \hat{\beta}_{R} &= (X^\text{T}X +\lambda I)^{-1}X^\text{T}y.
 \end{align*}
 
 
 ## b)
 
-
-The expected value of $\hat{\beta}_{R}$ as a function of $X$ is 
+The expected value of $\hat{\beta}_{R}$ is 
 \begin{align*}
 (X^\text{T}X +\lambda I)^{-1}X^\text{T}X\beta.
 \end{align*}
 
 
-
-The covariance matrix of the ridge estimator as a function of $X$ is 
+The covariance matrix of the ridge estimator is 
 \begin{align*}
 &(X^\text{T}X +\lambda I)^{-1}X^\text{T} \text{Var}(Y) ((X^\text{T}X +\lambda I)^{-1}X^\text{T})^\text{T} \\
 =& (X^\text{T}X +\lambda I)^{-1}X^\text{T} \sigma^2 I ((X^\text{T}X +\lambda I)^{-1}X^\text{T})^\text{T} \\
@@ -90,7 +84,6 @@ The covariance matrix of the ridge estimator as a function of $X$ is
 
 ## c)
 
-
 i. True.
 ii. False.
 iii. False.
@@ -99,36 +92,28 @@ iv. True.
 
 ## d)
 
-Splitting the `College` dataset into training data and test data.
+We split the `College` dataset into training data and test data.
 ```{r}
 train.ind = sample(1:nrow(College), 0.5*nrow(College))
 college.train = College[train.ind, ]
 college.test = College[-train.ind, ]
 ```
 
-Next, we apply forward stepwise selection to choose a model. 
-
-```{r, fig.height=7, fig.width=9}
-outstate_forw_fit = regsubsets(Outstate ~ . , nvmax = ncol(College)-1, data=College, method="forward")
-outstate_summary = summary(outstate_forw_fit)
-```
-
+Next, we apply forward stepwise selection to choose a model using BIC. BIC places a higher penalty on complexity than AIC and $C_p$. This might be appropriate in this case, as it is desirable to have an interpretable model which can shed some light on which predictors are important, not only make predictions using the model. 
 
 ```{r, fig.height=5, fig.width=6, fig.show="hold"}
+outstate_forw_fit = regsubsets(Outstate ~ . , nvmax = ncol(College)-1, data=College, method="forward")
+outstate_summary = summary(outstate_forw_fit)
 plot(outstate_summary$bic, type="l", xlab="Number of variables", ylab="BIC")
 axis(side=1, at= c(1:17))
 which.min(outstate_summary$bic)
 ```
 
-Looking at the plot displaying $\text{BIC}$, we can see that model 13 has the lowest $\text{BIC}$. 
-
-
-We extract the coefficients of model 13.
+Looking at the plot displaying $\text{BIC}$, we can see that model 13 has the lowest $\text{BIC}$. We extract the coefficients of model 13.
 ```{r}
 coef(outstate_forw_fit, 13)
 ```
 The model is 
-
 $$
 \begin{aligned}
 \texttt{Outstate} = &-1892.08 + 2265.83 \cdot \texttt{PrivateYes} - 0.28 \cdot \texttt{Apps} + 0.72 \cdot \texttt{Accept} + 22.46 \cdot \texttt{Top10perc} - 0.168 \cdot \texttt{F.Undergrad} + 0.89 \cdot \texttt{Room.Board}-0.25 \cdot \texttt{Personal} \\
@@ -150,19 +135,15 @@ predicted_outstate = predict(outstate_model_13, college.test[-9])
 ```
 
 Calculating the test mean squared error.
-
 ```{r}
 residuals = outstate_test_real - predicted_outstate
 mse_forw = mean(as.matrix(residuals^2))
-mse_forw
 ```
 The mean squared error on the test set is `r mse_forw`. 
 
 ## e)
 
-Now we will use the Lasso method to perform model selection using the `College` dataset. 
-
-First we convert the training and test data into matrix format.
+Now we will use the Lasso method to perform model selection using the `College` dataset. First we convert the training and test data into matrix format.
 ```{r}
 college_predictors_train = data.matrix(college.train[-9])
 college_response_train = data.matrix(college.train[9])
@@ -171,11 +152,10 @@ college_predictors_test = data.matrix(college.test[-9])
 college_response_test = data.matrix(college.test[9])
 ```
 
-
-Performing cross validation to find the best value for $\lambda$. 
+We then perform cross validation to find the best value for $\lambda$. 
 ```{r, fig.height=7, fig.width=9}
 set.seed(1)
-cv_outstate <- cv.glmnet(college_predictors_train, college_response_train, alpha=1, standardize=TRUE, nfolds=10)
+cv_outstate = cv.glmnet(college_predictors_train, college_response_train, alpha=1, nfolds=10)
 cv_outstate
 plot(cv_outstate)
 ```
@@ -190,15 +170,14 @@ lambda_index = Position(function(x){x == 10}, cv_outstate$nzero, right=TRUE)
 bestlambda = cv_outstate$lambda[lambda_index]
 ```
 
-Now we find the test $\text{MSE}$ obtained when using our chosen $\lambda$. 
+Now we find the test MSE obtained when using our chosen $\lambda$. 
 
 ```{r}
 lasso_college = glmnet(college_predictors_train, college_response_train, lambda=bestlambda)
 lasso_outstate_predictions = predict(lasso_college, s=bestlambda, newx=college_predictors_test)
 mse_lasso = mean((lasso_outstate_predictions - college_response_test)^2)
-mse_lasso
 ```
-Finding the coefficients of the new model.
+The test MSE is `r mse_lasso`.
 
 ```{r}
 coef(lasso_college)
