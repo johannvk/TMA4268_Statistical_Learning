@@ -110,7 +110,6 @@ outstate_forw_fit = regsubsets(Outstate ~ . , nvmax = ncol(College)-1, data=Coll
 outstate_summary = summary(outstate_forw_fit)
 plot(outstate_summary$bic, type="l", xlab="Number of variables", ylab="BIC")
 axis(side=1, at= c(1:17))
-which.min(outstate_summary$bic)
 ```
 
 Looking at the plot displaying $\text{BIC}$, we can see that model 13 has the lowest $\text{BIC}$. We extract the coefficients of model 13.
@@ -121,7 +120,7 @@ The model is
 $$
 \begin{aligned}
 \texttt{Outstate} = &-1892.08 + 2265.83 \cdot \texttt{PrivateYes} - 0.28 \cdot \texttt{Apps} + 0.72 \cdot \texttt{Accept} + 22.46 \cdot \texttt{Top10perc} \\ 
-&- 0.168 \cdot \texttt{F.Undergrad} + 0.89 \cdot \texttt{Room.Board}-0.25 \cdot \texttt{Personal} +12.81 \cdot \texttt{PhD} + 23.65 \cdot \texttt{Terminal} \\
+&- 0.17 \cdot \texttt{F.Undergrad} + 0.89 \cdot \texttt{Room.Board}-0.25 \cdot \texttt{Personal} +12.81 \cdot \texttt{PhD} + 23.65 \cdot \texttt{Terminal} \\
 &-46.94 \cdot \texttt{S.F.Ratio} - 41.01\cdot\texttt{perc.alumni} + 0.20 \cdot \texttt{Expend} + 23.63\cdot \texttt{Grad.Rate}.
 \end{aligned}
 $$
@@ -134,16 +133,11 @@ outstate_model_13 = lm(data=College, Outstate ~ Private + Apps + Accept + Top10p
                        + perc.alumni + Expend + Grad.Rate)
 ```
 
-Now, out of state tuition for the colleges in the test set is predicted using the model.
+Now, out-of-state tuition for the colleges in the test set is predicted using the model, and the test mean squared error is calculated.
 
 ```{r}
-outstate_test_real = college.test[9]
 predicted_outstate = predict(outstate_model_13, college.test[-9])
-```
-
-Calculating the test mean squared error.
-```{r}
-residuals = outstate_test_real - predicted_outstate
+residuals = college.test[9] - predicted_outstate
 mse_forw = mean(as.matrix(residuals^2))
 ```
 The mean squared error on the test set is `r mse_forw`. 
@@ -198,7 +192,7 @@ The variables that were selected were `Private`, `Top10perc`, `Room.Board`, `Per
 i. False,$\quad$ ii. False,$\quad$ iii. True,$\quad$ iv. True.
 
 ## b)
-The basis functions for a cubic spline with knots at the qaurtiles $q_1,~ q_2,~ q_3$ of variable $X$ are $\{1,~X,~X^2,~X^3,~h(X, q_1),~h(X, q_2),~h(X, q_3)\}$,
+The basis functions for a cubic spline with knots at the quartiles $q_1,~ q_2,~ q_3$ of variable $X$ are $\{1,~X,~X^2,~X^3,~h(X, q_1),~h(X, q_2),~h(X, q_3)\}$,
 where the functions $h(X, q_i)$ are truncated third power functions of $X$, allowing for discontinuities in the third derivative at the knots. They are defined as
 $$h(X, q_i) = 
 \begin{cases}
@@ -209,6 +203,7 @@ $$
 In total we have $4 + K = 7$ degrees of freedom with these seven basis functions.
 
 ## c)
+
 ```{r task2c, eval=TRUE, echo=TRUE, fig.width=7, fig.height=6}
 predictors = c("Private", "Room.Board", "Terminal", "perc.alumni", "Expend", "Grad.Rate")
 response = c("Outstate")
@@ -223,7 +218,7 @@ p_Room.Board = ggplot(College_2, aes(x = Room.Board, y = Outstate, color=color_d
 p_Terminal = ggplot(College_2, aes(x = Terminal, y = Outstate, color=color_data)) + 
   geom_point() + theme(legend.position="none")
 p_perc.alumni = ggplot(College_2, aes(x = perc.alumni, y = Outstate, color=color_data)) + 
-  geom_point() + theme(legend.position="none") 
+  geom_point() + theme(legend.position="none")
 p_Expend = ggplot(College_2, aes(x = Expend, y = Outstate, color=color_data)) + 
   geom_point() + theme(legend.position="none")
 p_Grad.Rate = ggplot(College_2, aes(x = Grad.Rate, y = Outstate, color=color_data)) + 
@@ -234,13 +229,13 @@ gridExtra::grid.arrange(p_Private, p_Room.Board, p_Terminal, p_perc.alumni,
                         p_Expend, p_Grad.Rate, nrow=3, ncol=2)
 ```
 
-By looking at the above plots of `Outstate` versus the six predictors `Private`, `Room.Board`, `Terminal`, `perc.alumni`, `Expend` and `Grad.Rate` there are several  interesting features present. The relationship between `Outstate` and `Terminal` seems reasonably linear and without need for a non-linear transformation, although we observe increasing variance with increasing predictor value. This also seems to be the case for the relationship between `Oustate` and the qualitative variable `Private`, as there appears to be an increase in the average `Outstate` for private colleges compared to public ones, but the variance in `Outstate` is also increased for the private colleges.  
+By looking at the above plots of `Outstate` versus the six predictors `Private`, `Room.Board`, `Terminal`, `perc.alumni`, `Expend` and `Grad.Rate` there are several  interesting features present. The relationship between `Outstate` and `Terminal` seems reasonably linear and without need for a non-linear transformation, although we observe increasing variance with increasing predictor value. This also seems to be the case for the relationship between `Outstate` and the qualitative variable `Private`, as there appears to be an increase in the average `Outstate` for private colleges compared to public ones, but the variance in `Outstate` is also increased for the private colleges.  
 
-The plot of `Outstate` versus `Grad.Rate` appears to have a clear linear relationship, and the variance appears more constant over the range of `Grad.Rate` values. In comparison, the relationship between `Expend` and `Outstate` appears linear until `Expend` increases above `20 000`, after which the `Outstate` values level off and vary greatly. In such a case a non-linear transformation of `Expend` seems beneficial for regression purposes, in order to avoid many the outliers with high leverage which would appear in a linear regression.
+The plot of `Outstate` versus `Grad.Rate` appears to have a clear linear relationship, and the variance appears more constant over the range of `Grad.Rate` values. In comparison, the relationship between `Expend` and `Outstate` appears linear until `Expend` increases above `20 000`, after which the `Outstate` values level off and vary greatly. In such a case a non-linear transformation of `Expend` seems beneficial for regression purposes, in order to avoid the many outliers with high leverage which would appear in a linear regression.
 
 From the plot of `Outstate` versus `Terminal` it seems that there is a non-linear relationship between them. Especially the relationship between `Outstate` and the `Terminal` values for private colleges looks more quadratic than linear, and in need of a non-linear transformation. And even the public colleges appear to have a non-linear relationship between `Outstate` and `Terminal`, if not as clear.
 
-Lastly, the relationship between `Outstate` and `perc.alumni` appears weak, and therefore an overly flexible non-linear basis function might be too flexible to give good predictive results. Therefore it does not appear beneficial to apply a non-linear transform to `per.alumni` before regression onto `Outstate`.
+Lastly, the relationship between `Outstate` and `perc.alumni` appears weak, and therefore an overly flexible non-linear basis function might be too flexible to give good predictive results. Therefore it does not appear beneficial to apply a non-linear transform to `perc.alumni` before regression onto `Outstate`.
 
 
 ## d)
@@ -305,10 +300,10 @@ smoothing_MSE = mean((College_2$Outstate - smooth_predict$y)^2)
 
 In the scatter plot of `Outstate` versus `Terminal` we have overlaid some of the polynomial regression lines for degrees $d = 1, ..., 10$. We observe increased twisting of the higher order polynomial regressions, but the second degree polynomial regression seems visually to fit closer to the data over a greater portion of the range of the covariate without suffering from too much flexibility.
 
-For the smoothing spline of `Outstate` versus `Expend` the degrees of freedom were chosen thorugh LOOCV, performed internally in the `smooth.spline` function by setting `cv=T`. This resulted in `r round(smooth_spline_model$df, 3)` degrees of freedom. 
+For the smoothing spline of `Outstate` versus `Expend` the degrees of freedom were chosen through LOOCV, performed internally in the `smooth.spline` function by setting `cv=T`. This resulted in `r round(smooth_spline_model$df, 3)` degrees of freedom. 
 
 The lowest MSE for the polynomial regression of `Outstate` onto `Terminal` comes from the highest degree $d=10$, as expected by the increased flexibility, and comes out to `r min_poly_MSE`. For the smoothing spline regression of `Outstate` onto `Expend`, the MSE is `r smoothing_MSE`. 
-The fact that the MSE for `Outstate` onto `Terminal` using polynomial regression is more than three times greater than that of `Outstate` onto `Expend` using smoothing splines is not very surprising. Firstly, the correlation between `Outstate` and `Terminal` appears much lower than that of `Oustate` and `Expend`, indicating that regression lines would do better in the latter case. And secondly, smoothing splines have the ability to fit the data more locally than global polynomial regression can, and therefore one might expect a lower MSE from smoothing spline regression than from global polynomial regression. 
+The fact that the MSE for `Outstate` onto `Terminal` using polynomial regression is more than three times greater than that of `Outstate` onto `Expend` using smoothing splines is not very surprising. Firstly, the correlation between `Outstate` and `Terminal` appears much lower than that of `Outstate` and `Expend`, indicating that regression lines would do better in the latter case. And secondly, smoothing splines have the ability to fit the data more locally than global polynomial regression can, and therefore one might expect a lower MSE from smoothing spline regression than from global polynomial regression. 
 
 
 # Problem 3
@@ -321,7 +316,6 @@ We will create a random forest model to predict the out-of-state tuition variabl
 ```{r}
 set.seed(1)
 control <- trainControl(method="cv", number=10, search="grid")
-
 tunegrid = data.frame("mtry"=c(1:17))
 rf_gridsearch <- train(Outstate ~ ., 
                        data = college.train,
@@ -342,12 +336,12 @@ mse_rf = mean(as.matrix((college.test[9]-rf_predicts))^2)
 The test MSE was `r mse_rf`. 
 
 The random forest model was chosen for its accuracy, not for interpretability. It improves on a single pruned regression tree and on bagging by using many trees that are decorrelated by introducing a random limitation on which splits can be made in each tree.
-ompared to boosting, a random forest model has few tuning parameters. We need only tune `mtry`, the number of possible parameters the model can use in each split in the tree. In boosting, there are three tuning parameters: the number of trees, the shrinkage parameter, and the number of splits in each tree. 
+Compared to boosting, a random forest model has few tuning parameters. We need only tune `mtry`, the number of possible parameters the model can use in each split in the tree. In boosting, there are three tuning parameters: the number of trees, the shrinkage parameter, and the number of splits in each tree. 
 
-A disadvantage of random forest is that it is less intuitive and interpretable than a single pruned decision tree. However, compared to boosting, there is no large difference in interpretability. It is more time consuming to construct and tune the model than to construct a single decision tree, however at this scale it does not take more than a few minutes, which is reasonable. 
+A disadvantage of random forest is that it is less intuitive and interpretable than a single pruned decision tree. However, compared to boosting, there is no large difference in interpretability. It is more time consuming to construct and tune the model than to construct a single decision tree, however at this scale it does not take more than a few minutes.
 
 ## c)
-Comparing the MSEs of the methods used in problem 1 and 3. The MSEs were `r mse_forw` for forward selection, `r mse_lasso` for the Lasso and `r mse_rf` for the random forest model. 
+The MSEs were `r mse_forw` for forward selection, `r mse_lasso` for the Lasso and `r mse_rf` for the random forest model. 
 
 
 Random forest gives the lower test error by a large margin, however for interpretability either Lasso or forward selection would be preferred. The model found using the Lasso method has the fewest predictors, and so is the easiest to interpret among the two. 
@@ -378,6 +372,7 @@ diab_test_responses = d.test[1]
 
 Using cross-validation to find a good value of `cost` for a support vector classifier.
 ```{r}
+set.seed(1)
 costs = c(0.001, 0.01, 0.1, 1, 5, 10, 100)
 cv_svc = tune(svm, diabetes ~ ., data=d.train, kernel="linear", ranges=list(cost=costs))
 best_cost = cv_svc$best.parameters
@@ -391,7 +386,7 @@ diab_svc = svm(data=d.train, diabetes ~ ., kernel="linear", cost=best_cost, scal
  
 Fitting a support vector machine with radial boundary. First using cross validation to find parameters $\gamma$ and cost. 
 ```{r}
-gammas = 10^seq(-7, 1, length=9)
+gammas = 10^seq(-4, 1, length=6)
 cv_svm = tune(svm, diabetes~., kernel="radial", ranges=list(cost=costs, gamma=gammas), data=d.train)
 
 best_cost_svm = cv_svm$best.parameters[1]
@@ -440,9 +435,9 @@ sensitivity_svm
 specificity_svm
 ```
 
-The sensitivities of both models are quite low. If the models are to be used for prediction, one would want a high sensitivity considering that undiagnosed diabetes has negative consequences on a person's health. The support vector classfier, which has a linear kernel, performed slightly better than the support vector machine with a radial kernel.
+The sensitivities of both models are quite low, `r sensitivity_svc` for the support vector classifier, and `r sensitivity_svm` for the support vector machine. If the models are to be used for prediction, one would want a high sensitivity considering that undiagnosed diabetes has negative consequences on a person's health. The support vector classfier, which has a linear kernel, performed slightly better than the support vector machine with a radial kernel.
 
-The support vector machine had a higher specificity, however we would prefer using the support vector classifier.
+The specificities were `r specificity_svc` for the support vector classifier  and `r specificity_svm` for the support vector machine. The support vector machine had a higher specificity, however we would prefer using the support vector classifier due to its higher sensitivity. 
 
 ## c)
 Here we assume that a classifier which makes it possible to see which variables affect the chance of a woman having diabetes is preferred. We pick logistic regression, as it gives interpretable results, does not assume normal distribution or equal variances, and does not assume equal number of datapoints in each class. 
@@ -472,8 +467,10 @@ specificity_logreg
 
 Calculating misclassification rate.
 ```{r}
-mean(logreg_classification*1 != d.test$diabetes)
+misclass_logreg = mean(logreg_classification*1 != d.test$diabetes)
 ```
+The sensitivity and specificity of the logistic regression model were `r sensitivity_logreg` and `r specificity_logreg`. The misclassification rate was `r misclass_logreg`. 
+
 Logistic regression has the advantage over SVMs that it gives an estimate of the probability of an observation belonging to a class, rather than just a predicted class. 
 
 A disadvantage of logistic regression is that it is more sensitive to outliers. Support vector machines are not sensitive to outliers since these often end up not affecting the decision boundary since they are not among the support vectors.
@@ -668,7 +665,7 @@ print(Corr_average_cm)
 cat("\nSingle linkage:\n")
 print(Corr_single_cm)
 ```
-From the above confusion matrices, we observe that the Euclidian dissimilarity measure performs very well for all three linkage types, and perfectly seperates the two tissue groups. For the Correlation dissimilarity measure on the other hand, there is clear tendency to group together healty tissue with disease tissue. All the disease tissue is combined into one group, but with the different linkage types they are joined by different numbers of healty tissue samples. The complete linkage type performs the best, with half of the healty tissue types correctly placed in a group by themselves. For the single linkage type, only a single healthy tissue type is classified as from a different group than the other $39$ tissue samples.
+From the above confusion matrices, we observe that the Euclidian dissimilarity measure performs very well for all three linkage types, and perfectly seperates the two tissue groups. For the Correlation dissimilarity measure on the other hand, there is clear tendency to group together healthy tissue with disease tissue. All the disease tissue is combined into one group, but with the different linkage types they are joined by different numbers of healty tissue samples. The complete linkage type performs the best, with half of the healthy tissue types correctly placed in a group by themselves. For the single linkage type, only a single healthy tissue type is classified as from a different group than the other $39$ tissue samples.
 
 ## c)
 Looking at the optimization problem that we need to solve for Principal Component Analysis (PCA) we have
@@ -679,7 +676,7 @@ Looking at the optimization problem that we need to solve for Principal Componen
 
 In this problem, $\phi$ is a unit length vector in $\mathbb{R}^p$, describing the weigthed sum of covariates with the greatest variance. This means that $p$ is the number of covariates, or predictive variables, excluding the intercept. In PCA it is also not uncommon to standardize measurements to have zero mean and variance one, to avoid inflation of variance in certain directions of the covariate-space due to different units being used for measurement and the like. Naturally from this explanation, $n$ is the number of measurements of the $p$ covariates. 
 
-This problem can be framed in terms of matrices to gain additional insight. For a given set of $p$ covariates $x = [x_1, x_2, ..., x_p]^T$ and $n$ measurements gathered in an $n\times p$ data matrix $X$, that has been standardized to have zero means and variance one along its columns, we can construct the positive semi-definite empirical correlation matrix between these covariates as $C = \frac{1}{n-1}X^T X$. Then we have that the weighted sum of covariates $\phi^T x$ with the greatest variance, is the eigenvector of $C$ with the greatest eigenvalue $\lambda_1$. This due to the fact that Var$(\phi^T x)$ = $\phi^T \text{Var}(x)\phi$ = $\phi^T C \phi$, and this scalar is maxmized for $C\phi = \lambda_1\phi$ when $C$ is positive semidefinite and $||\phi||_2 = 1$.
+This problem can be framed in terms of matrices to gain additional insight. For a given set of $p$ covariates $x = [x_1, x_2, ..., x_p]^T$ and $n$ measurements gathered in an $n\times p$ data matrix $X$, that has been standardized to have zero means and variance one along its columns, we can construct the positive semi-definite empirical correlation matrix between these covariates as $C = \frac{1}{n-1}X^T X$. Then we have that the weighted sum of covariates $\phi^T x$ with the greatest variance, is the eigenvector of $C$ with the greatest eigenvalue $\lambda_1$. This due to the fact that Var$(\phi^T x)$ = $\phi^T \text{Var}(x)\phi$ = $\phi^T C \phi$, and this scalar is maximized for $C\phi = \lambda_1\phi$ when $C$ is positive semidefinite and $||\phi||_2 = 1$.
 
 Now given that a solution vector $\phi$ to the above optimization problem has been found, the first principal component scores are defined as 
 
@@ -708,9 +705,9 @@ variance_portion = pca_GD_var/sum(pca_GD_var)
 print("Proportion of Variance explained by first five principal components:")
 print(sum(variance_portion[1:5]))
 ```
-In performing principal component analysis on our `GenaData` dataset we have chosen to normalize the covariates to have zero mean and variance one. This is done even thoughpresumably gene expression is measured in the same units for different genes, as we see some spread in the means and variance of the gene expression of different genes, as shown in the code printout above.
+In performing principal component analysis on our `GenaData` dataset we have chosen to normalize the covariates to have zero mean and variance one. This is done even though presumably gene expression is measured in the same units for different genes, as we see some spread in the means and variance of the gene expression of different genes, as shown in the code printout above.
 
-We observe a clear seperation of the the two different tissue types from the scatter plot of principal component 1 (PC1) versus pricipal component 2 (PC2), suggesting that PC1 captures an important seperating line in the space of the thousand gene expressions measured.
+We observe a clear separation of the the two different tissue types from the scatter plot of principal component 1 (PC1) versus principal component 2 (PC2), suggesting that PC1 captures an important separating line in the space of the thousand gene expressions measured.
 The amount of variance explained by the first five PC's is found to be $21.1\%$ when rounded to one digit. 
 
 ## e)
@@ -734,7 +731,7 @@ cat("Proportion of variance explained by the", n, "highest magnintude components
 cat("These genes are:\n")
 print(names(phi_1[maxn_var_indices])) 
 ```
-By using only 150 out of 1000 the thousand measured genes in the first PC, we account for 4.8% of the variation in the scaled GeneData. This is more than half of the variance explained by PC1 when using all 1000 genes, and thus indicates that we have found a subset of genes which vary across the two   tissue groups. The top 10 genes that account for the most variation are G502, G589, G565, G590, G600, G551, G593, G538, G584 and G509. These are all in the range G-[502, 600].
+By using only 150 out of the thousand measured genes in the first PC, we account for 4.8% of the variation in the scaled GeneData. This is more than half of the variance explained by PC1 when using all 1000 genes, and thus indicates that we have found a subset of genes which vary across the two   tissue groups. The top 10 genes that account for the most variation are G502, G589, G565, G590, G600, G551, G593, G538, G584 and G509. These are all in the range G-[502, 600].
 
 
 ## f)
@@ -747,4 +744,4 @@ k_means_plot = ggplot(pcs_df, aes(x=PC1, y=PC2, shape=cluster, color=tissue)) + 
                       labs(title="GeneData, PC1 vs. PC2. Cluster 1 and 2 from K-means")
 print(k_means_plot)
 ```
-From the above plot where tissue type is denoted by color, and cluster from the K-means algorithm is denoted as different symbols, we see from visual investigation that the error rate for K-means when it comes to seperating the two tissue types is $0\%$.
+From the above plot where tissue type is denoted by color, and cluster from the K-means algorithm is denoted as different symbols, we see from visual investigation that the error rate for K-means when it comes to separating the two tissue types is $0\%$.
