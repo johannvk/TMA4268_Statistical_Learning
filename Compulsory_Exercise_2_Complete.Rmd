@@ -232,9 +232,9 @@ Looking at the above plots of `Outstate` versus the six predictors `Private`, `R
 
 The plot of `Outstate` versus `Grad.Rate` appears to have a clear linear relationship, and the variance appears more constant over the range of `Grad.Rate` values. In comparison, the relationship between `Expend` and `Outstate` appears linear until `Expend` increases above `20 000`, after which the `Outstate` values level off and vary greatly. In such a case a non-linear transformation of `Expend` seems beneficial for regression purposes, in order to avoid the many outliers with high leverage which would appear in a linear regression.
 
-From the plot of `Outstate` versus `Terminal` it seems that there is weak possibly non-linear relationship between them. Especially the relationship between `Outstate` and the `Terminal` values for private colleges looks more quadratic than linear, and in need of a non-linear transformation. And even the public colleges appear to have a non-linear relationship between `Outstate` and `Terminal`, if not as clear.
+From the plot of `Outstate` versus `Terminal` it seems that there is a weak possibly non-linear relationship between them. Especially the relationship between `Outstate` and the `Terminal` values for private colleges looks more quadratic than linear, and in need of a non-linear transformation. And even the public colleges appear to have a non-linear relationship between `Outstate` and `Terminal`, if not as clear.
 
-Lastly, the relationships between `Outstate` and the variables `perc.alumni` and `Room.Board` appears linear, but only weakly positivly correlated. Because of this overly flexible non-linear basis functions of `perc.alumni` and `Grad.Rate` might be too flexible for prediction purposes. For both variables it does not appear beneficial to apply a non-linear transformations to them before regression onto `Outstate`.
+Lastly, the relationships between `Outstate` and the variables `perc.alumni` and `Room.Board` appears linear, but only weakly positivly correlated. Because of this, overly flexible non-linear basis functions of `perc.alumni` and `Grad.Rate` might be too flexible for prediction purposes. For both variables it does not appear beneficial to apply non-linear transformations to them before regression onto `Outstate`.
 
 ## d)
 ```{r task2d_1, eval=TRUE, echo=TRUE, fig.width=6, fig.height=5, fig.show="hold", results="hold"}
@@ -345,6 +345,7 @@ The MSEs were `r mse_forw` for forward selection, `r mse_lasso` for the Lasso an
 
 Random forest gives the lower test error by a large margin, however for interpretability either Lasso or forward selection would be preferred. The model found using the Lasso method has the fewest predictors, and so is the easiest to interpret among the two. 
 
+\clearpage
 # Problem 4
 
 ## a)
