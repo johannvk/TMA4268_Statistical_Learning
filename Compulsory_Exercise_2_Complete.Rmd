@@ -228,15 +228,13 @@ p_Grad.Rate = ggplot(College_2, aes(x = Grad.Rate, y = Outstate, color=color_dat
 gridExtra::grid.arrange(p_Private, p_Room.Board, p_Terminal, p_perc.alumni, 
                         p_Expend, p_Grad.Rate, nrow=3, ncol=2)
 ```
-
-By looking at the above plots of `Outstate` versus the six predictors `Private`, `Room.Board`, `Terminal`, `perc.alumni`, `Expend` and `Grad.Rate` there are several  interesting features present. The relationship between `Outstate` and `Terminal` seems reasonably linear and without need for a non-linear transformation, although we observe increasing variance with increasing predictor value. This also seems to be the case for the relationship between `Outstate` and the qualitative variable `Private`, as there appears to be an increase in the average `Outstate` for private colleges compared to public ones, but the variance in `Outstate` is also increased for the private colleges.  
+Looking at the above plots of `Outstate` versus the six predictors `Private`, `Room.Board`, `Terminal`, `perc.alumni`, `Expend` and `Grad.Rate` there are several  interesting features present. There appears to be an increase in `Outstate` when the qualitative variable `Private` is `Yes`, but the variance in `Outstate` is also increased for the private colleges.  
 
 The plot of `Outstate` versus `Grad.Rate` appears to have a clear linear relationship, and the variance appears more constant over the range of `Grad.Rate` values. In comparison, the relationship between `Expend` and `Outstate` appears linear until `Expend` increases above `20 000`, after which the `Outstate` values level off and vary greatly. In such a case a non-linear transformation of `Expend` seems beneficial for regression purposes, in order to avoid the many outliers with high leverage which would appear in a linear regression.
 
-From the plot of `Outstate` versus `Terminal` it seems that there is a non-linear relationship between them. Especially the relationship between `Outstate` and the `Terminal` values for private colleges looks more quadratic than linear, and in need of a non-linear transformation. And even the public colleges appear to have a non-linear relationship between `Outstate` and `Terminal`, if not as clear.
+From the plot of `Outstate` versus `Terminal` it seems that there is weak possibly non-linear relationship between them. Especially the relationship between `Outstate` and the `Terminal` values for private colleges looks more quadratic than linear, and in need of a non-linear transformation. And even the public colleges appear to have a non-linear relationship between `Outstate` and `Terminal`, if not as clear.
 
-Lastly, the relationship between `Outstate` and `perc.alumni` appears weak, and therefore an overly flexible non-linear basis function might be too flexible to give good predictive results. Therefore it does not appear beneficial to apply a non-linear transform to `perc.alumni` before regression onto `Outstate`.
-
+Lastly, the relationships between `Outstate` and the variables `perc.alumni` and `Room.Board` appears linear, but only weakly positivly correlated. Because of this overly flexible non-linear basis functions of `perc.alumni` and `Grad.Rate` might be too flexible for prediction purposes. For both variables it does not appear beneficial to apply a non-linear transformations to them before regression onto `Outstate`.
 
 ## d)
 ```{r task2d_1, eval=TRUE, echo=TRUE, fig.width=6, fig.height=5, fig.show="hold", results="hold"}
@@ -305,6 +303,7 @@ For the smoothing spline of `Outstate` versus `Expend` the degrees of freedom we
 The lowest MSE for the polynomial regression of `Outstate` onto `Terminal` comes from the highest degree $d=10$, as expected by the increased flexibility, and comes out to `r min_poly_MSE`. For the smoothing spline regression of `Outstate` onto `Expend`, the MSE is `r smoothing_MSE`. 
 The fact that the MSE for `Outstate` onto `Terminal` using polynomial regression is more than three times greater than that of `Outstate` onto `Expend` using smoothing splines is not very surprising. Firstly, the correlation between `Outstate` and `Terminal` appears much lower than that of `Outstate` and `Expend`, indicating that regression lines would do better in the latter case. And secondly, smoothing splines have the ability to fit the data more locally than global polynomial regression can, and therefore one might expect a lower MSE from smoothing spline regression than from global polynomial regression. 
 
+\clearpage
 
 # Problem 3
 
@@ -345,7 +344,6 @@ The MSEs were `r mse_forw` for forward selection, `r mse_lasso` for the Lasso an
 
 
 Random forest gives the lower test error by a large margin, however for interpretability either Lasso or forward selection would be preferred. The model found using the Lasso method has the fewest predictors, and so is the easiest to interpret among the two. 
-
 
 # Problem 4
 
@@ -561,7 +559,6 @@ plot(dend_Euclid_complete, main="Complete Grouping", ylim=c(38, 52),
      ylab="Dissimillar Euclidian Height")
 plot(dend_Euclid_average, main="Average Grouping", ylim=c(38, 50))
 plot(dend_Euclid_single, main="Single Grouping", ylim=c(38, 47))
-### TODO: Nevne i teksten i .Rmd-dokumentet at Blue: Frisk, Red: Syk.
 
 # Plotting Dendrograms with Correlation Dissimillarity:
 Corr_dist = as.dist(1.0 - cor(t(GeneData), t(GeneData)))
