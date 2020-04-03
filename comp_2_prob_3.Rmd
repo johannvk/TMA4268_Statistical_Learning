@@ -68,8 +68,7 @@ rf_gridsearch <- train(Outstate ~ .,
 best_mtry = unlist(rf_gridsearch$bestTune)
 ```
 
-
-The best value for`mtry` was found to be `best_mtry`. Now we fit a random forest model to the training set using the value of `mtry` found using cross validation, and find the test MSE.
+The best value for `mtry` was found to be `r best_mtry`. Now we fit a random forest model to the training set using the value of `mtry` found using cross validation, and find the test MSE.
 
 ```{r}
 rf_college = randomForest(Outstate~., data=college.train, mtry=best_mtry,  ntree=500, importance=TRUE)

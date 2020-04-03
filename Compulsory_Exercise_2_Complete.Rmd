@@ -20,13 +20,29 @@ knitr::opts_chunk$set(echo = TRUE,tidy=TRUE,message=FALSE,warning=FALSE,strip.wh
 # install.packages("ggplot2") #plotting with ggplot
 # install.packages("ggfortify")  
 # install.packages("MASS")  
-# install.packages("dplyr")  
+# install.packages("dplyr")
+# install.packages("formatR")
 library(knitr)
 library(rmarkdown)
 library(ggplot2)
 library(ggfortify)
 library(MASS)
 library(dplyr)
+library(ISLR)
+library(leaps)
+library(glmnet)
+library(corrplot)
+library(RColorBrewer)
+library(splines)
+library(caret)
+library(tree)
+library(randomForest)
+library(GGally)
+library(e1071)
+library(dendextend)
+library(formatR)
+
+set.seed(1)
 ```
 
 
@@ -34,77 +50,701 @@ library(dplyr)
 
 ## a)
 
+The ridge estimator is the value $\hat{\beta}_{R}$ of $\beta$ that minimizes  
+\begin{align*}
+  \text{RSS} + \lambda \sum_{j=1}^p \beta_j^2 &= (y-X\beta)^\text{T}(y-X\beta) + \lambda \beta^\text{T}\beta \\
+  &= (y^\text{T} - \beta^\text{T} X^\text{T})(y-X \beta) + \lambda \beta^\text{T}\beta\\
+  &= (y^\text{T} - \beta^\text{T} X^\text{T})y - (y^\text{T} - \beta^\text{T} X^\text{T}) X\beta + \lambda \beta^\text{T}\beta\\
+  &= y^\text{T}y -\beta^\text{T}X^\text{T}y-y^\text{T}X\beta + \beta^\text{T}X^\text{T}X\beta +\lambda \beta^\text{T}\beta.\\
+\end{align*}
+
+The value above is the $\text{RSS}$ plus a term which penalizes large values of $\beta$, which forces the parameter $\beta$ to shrink. In order to find the minimizer $\hat{\beta}_{R}$, we set the partial derivative of the above expression with respect to $\beta$ equal to zero. The partial derivative with respect to $\beta$ is 
+\begin{align*}
+&\frac{\partial}{\partial \beta} \left(  (y-X\beta)^\text{T}(y-X\beta) + \lambda \beta^\text{T}\beta  \right) \\
+=& \frac{\partial}{\partial \beta} \left(  y^\text{T}y -\beta^\text{T}X^\text{T}y-y^\text{T}X\beta + \beta^\text{T}X^\text{T}X\beta +\lambda \beta^\text{T}\beta  \right) \\
+=& -2X^\text{T}y+2X^\text{T}X\beta +2\lambda I.
+\end{align*}
+
+Setting the partial derivative equal to zero in order to find the minimizer yields
+\begin{align*}
+-2X^\text{T}y+2X^\text{T}X\hat{\beta}_{R} +2\lambda I \hat{\beta}_{R} &= 0\\
+\implies -X^\text{T}y+X^\text{T}X\hat{\beta}_{R} +\lambda I\hat{\beta}_{R} &= 0 \\
+\implies X^\text{T}X\hat{\beta}_{R} +\lambda I\hat{\beta}_{R} &= X^\text{T}y \\
+\implies \hat{\beta}_{R} &= (X^\text{T}X +\lambda I)^{-1}X^\text{T}y.
+\end{align*}
+
+
 ## b)
+
+The expected value of $\hat{\beta}_{R}$ is 
+\begin{align*}
+(X^\text{T}X +\lambda I)^{-1}X^\text{T}X\beta.
+\end{align*}
+
+
+The covariance matrix of the ridge estimator is 
+\begin{align*}
+&(X^\text{T}X +\lambda I)^{-1}X^\text{T} \text{Var}(Y) ((X^\text{T}X +\lambda I)^{-1}X^\text{T})^\text{T} \\
+=& (X^\text{T}X +\lambda I)^{-1}X^\text{T} \sigma^2 I ((X^\text{T}X +\lambda I)^{-1}X^\text{T})^\text{T} \\
+=& \sigma^2 (X^\text{T}X +\lambda I)^{-1}X^\text{T}  X((X^\text{T}X +\lambda I)^{-1})^\text{T}. \\
+\end{align*}
+
 
 ## c)
 
+i. True,$\quad$ ii. False,$\quad$ iii. False,$\quad$ iv. True. 
+
 ## d)
+
+We split the `College` dataset into training data and test data.
+```{r}
+train.ind = sample(1:nrow(College), 0.5*nrow(College))
+college.train = College[train.ind, ]
+college.test = College[-train.ind, ]
+```
+
+Next, we apply forward stepwise selection to choose a model using BIC. BIC places a higher penalty on complexity than AIC and $C_p$. This might be appropriate in this case, as it is desirable to have an interpretable model which can shed some light on which predictors are important, not only make predictions using the model. 
+
+```{r, fig.height=3.5, fig.width=6, fig.show="hold"}
+outstate_forw_fit = regsubsets(Outstate ~ . , nvmax = ncol(College)-1, data=College, method="forward")
+outstate_summary = summary(outstate_forw_fit)
+plot(outstate_summary$bic, type="l", xlab="Number of variables", ylab="BIC")
+axis(side=1, at= c(1:17))
+which.min(outstate_summary$bic)
+```
+
+Looking at the plot displaying $\text{BIC}$, we can see that model 13 has the lowest $\text{BIC}$. We extract the coefficients of model 13.
+```{r}
+coef(outstate_forw_fit, 13)
+```
+The model is 
+$$
+\begin{aligned}
+\texttt{Outstate} = &-1892.08 + 2265.83 \cdot \texttt{PrivateYes} - 0.28 \cdot \texttt{Apps} + 0.72 \cdot \texttt{Accept} + 22.46 \cdot \texttt{Top10perc} \\ 
+&- 0.168 \cdot \texttt{F.Undergrad} + 0.89 \cdot \texttt{Room.Board}-0.25 \cdot \texttt{Personal} +12.81 \cdot \texttt{PhD} + 23.65 \cdot \texttt{Terminal} \\
+&-46.94 \cdot \texttt{S.F.Ratio} - 41.01\cdot\texttt{perc.alumni} + 0.20 \cdot \texttt{Expend} + 23.63\cdot \texttt{Grad.Rate}.
+\end{aligned}
+$$
+
+To find the MSE on the test set, we first fit a linear model using the variables in the chosen model.
+
+```{r}
+outstate_model_13 = lm(data=College, Outstate ~ Private + Apps + Accept + Top10perc + 
+                       F.Undergrad + Room.Board + Personal + PhD + Terminal + S.F.Ratio 
+                       + perc.alumni + Expend + Grad.Rate)
+```
+
+Now, out of state tuition for the colleges in the test set is predicted using the model.
+
+```{r}
+outstate_test_real = college.test[9]
+predicted_outstate = predict(outstate_model_13, college.test[-9])
+```
+
+Calculating the test mean squared error.
+```{r}
+residuals = outstate_test_real - predicted_outstate
+mse_forw = mean(as.matrix(residuals^2))
+```
+The mean squared error on the test set is `r mse_forw`. 
 
 ## e)
 
-## f)
+Now we will use the Lasso method to perform model selection using the `College` dataset. First we convert the training and test data into matrix format.
+```{r}
+college_predictors_train = data.matrix(college.train[-9])
+college_response_train = data.matrix(college.train[9])
 
-## g)
+college_predictors_test = data.matrix(college.test[-9])
+college_response_test = data.matrix(college.test[9])
+```
+
+We then perform cross validation to find the best value for $\lambda$. 
+```{r, fig.height=5, fig.width=8}
+set.seed(1)
+cv_outstate = cv.glmnet(college_predictors_train, college_response_train, alpha=1, nfolds=10)
+cv_outstate
+plot(cv_outstate)
+```
+
+The above plot shows that the value of $\lambda$ which minimizes the $\text{MSE}$ (shown as the leftmost vertical dotted line) does not remove any predictors from the model. While a low $\text{MSE}$ is desirable, so is a simplified model. The other value of $\lambda$ which is highlighted with a dotted line in the plot is `lambda.1se`. This value of $\lambda$ gives a slightly higher $\text{MSE}$, however, it only uses $9$ out of $17$ variables, thus greatly simplifying the model. 
+
+However, we can see that allowing just one extra variable, giving a total of 10 predictors, the $\text{MSE}$ can be brought much closer to its minimum. We will use this model. 
+
+```{r}
+# Finding index of the last model to have 10 variables, meaning the one with the smallest MSE.
+lambda_index = Position(function(x){x == 10}, cv_outstate$nzero, right=TRUE)
+bestlambda = cv_outstate$lambda[lambda_index]
+```
+
+Now we find the test MSE obtained when using our chosen $\lambda$. 
+
+```{r}
+lasso_college = glmnet(college_predictors_train, college_response_train, lambda=bestlambda)
+lasso_outstate_predictions = predict(lasso_college, s=bestlambda, newx=college_predictors_test)
+mse_lasso = mean((lasso_outstate_predictions - college_response_test)^2)
+```
+The test MSE is `r mse_lasso`.
+
+```{r}
+coef(lasso_college)
+```
+The variables that were selected were `Private`, `Top10perc`, `Room.Board`, `Personal`, `PhD`, `Terminal`, `S.F.Ratio`, `perc.alumni`, `Expend` and `Grad.Rate`. 
+
 
 # Problem 2
 
-Here is a code chunk:
-
-```{r worm, eval=TRUE, echo=TRUE}
-id <- "1nLen1ckdnX4P9n8ShZeU7zbXpLc7qiwt" # google file ID
-d.worm <- read.csv(sprintf("https://docs.google.com/uc?id=%s&export=download", id))
-head(d.worm)
-```
-
-Let's see: `r 2+2`
-
 ## a)
+i. False,$\quad$ ii. False,$\quad$ iii. True,$\quad$ iv. True.
 
-
-## b) 
-Below you have to complete the code and then replace `eval=FALSE` by `eval=TRUE` in the chunk options:
-```{r, eval=FALSE, echo=TRUE}
-ggplot(d.worm,aes(x= ... ,y=  ... ,colour= ...)) + geom_point() + theme_bw()
-```
-
-Note that the default figure width and height have been set globally as `fig.width=4, fig.height=3`, but if you would like to change that (e.g., due to space constraints), you can include a different width and height directly into the chunk options, again using `fig.width=..., fig.height=...`.
+## b)
+The basis functions for a cubic spline with knots at the qaurtiles $q_1,~ q_2,~ q_3$ of variable $X$ are $\{1,~X,~X^2,~X^3,~h(X, q_1),~h(X, q_2),~h(X, q_3)\}$,
+where the functions $h(X, q_i)$ are truncated third power functions of $X$, allowing for discontinuities in the third derivative at the knots. They are defined as
+$$h(X, q_i) = 
+\begin{cases}
+(X - q_i)^3,&\quad q_i \leq X, \\
+0,&\quad X \leq q_i.
+\end{cases}
+$$
+In total we have $4 + K = 7$ degrees of freedom with these seven basis functions.
 
 ## c)
+```{r task2c, eval=TRUE, echo=TRUE, fig.width=7, fig.height=6}
+predictors = c("Private", "Room.Board", "Terminal", "perc.alumni", "Expend", "Grad.Rate")
+response = c("Outstate")
+College_2 = select(college.train, predictors, response)
+
+# Generating the six plots of the response Outstate versus the six predictors:
+color_data = College_2$Private
+p_Private = ggplot(College_2, aes(x = Private, y = Outstate, color=color_data)) + 
+  geom_point() + theme(legend.position="top")
+p_Room.Board = ggplot(College_2, aes(x = Room.Board, y = Outstate, color=color_data)) + 
+  geom_point() + theme(legend.position="none")
+p_Terminal = ggplot(College_2, aes(x = Terminal, y = Outstate, color=color_data)) + 
+  geom_point() + theme(legend.position="none")
+p_perc.alumni = ggplot(College_2, aes(x = perc.alumni, y = Outstate, color=color_data)) + 
+  geom_point() + theme(legend.position="none") 
+p_Expend = ggplot(College_2, aes(x = Expend, y = Outstate, color=color_data)) + 
+  geom_point() + theme(legend.position="none")
+p_Grad.Rate = ggplot(College_2, aes(x = Grad.Rate, y = Outstate, color=color_data)) + 
+  geom_point() + theme(legend.position="none")
+
+# Plotting the six plots in a 3X2-grid:
+gridExtra::grid.arrange(p_Private, p_Room.Board, p_Terminal, p_perc.alumni, 
+                        p_Expend, p_Grad.Rate, nrow=3, ncol=2)
+```
+
+By looking at the above plots of `Outstate` versus the six predictors `Private`, `Room.Board`, `Terminal`, `perc.alumni`, `Expend` and `Grad.Rate` there are several  interesting features present. The relationship between `Outstate` and `Terminal` seems reasonably linear and without need for a non-linear transformation, although we observe increasing variance with increasing predictor value. This also seems to be the case for the relationship between `Oustate` and the qualitative variable `Private`, as there appears to be an increase in the average `Outstate` for private colleges compared to public ones, but the variance in `Outstate` is also increased for the private colleges.  
+
+The plot of `Outstate` versus `Grad.Rate` appears to have a clear linear relationship, and the variance appears more constant over the range of `Grad.Rate` values. In comparison, the relationship between `Expend` and `Outstate` appears linear until `Expend` increases above `20 000`, after which the `Outstate` values level off and vary greatly. In such a case a non-linear transformation of `Expend` seems beneficial for regression purposes, in order to avoid many the outliers with high leverage which would appear in a linear regression.
+
+From the plot of `Outstate` versus `Terminal` it seems that there is a non-linear relationship between them. Especially the relationship between `Outstate` and the `Terminal` values for private colleges looks more quadratic than linear, and in need of a non-linear transformation. And even the public colleges appear to have a non-linear relationship between `Outstate` and `Terminal`, if not as clear.
+
+Lastly, the relationship between `Outstate` and `perc.alumni` appears weak, and therefore an overly flexible non-linear basis function might be too flexible to give good predictive results. Therefore it does not appear beneficial to apply a non-linear transform to `per.alumni` before regression onto `Outstate`.
+
 
 ## d)
+```{r task2d_1, eval=TRUE, echo=TRUE, fig.width=6, fig.height=5, fig.show="hold", results="hold"}
+# Initializing storage for the polynomial regression models and predicted values:
+poly_predicted_values = list()
+poly_mse = list()
 
-## e)
+# Making the d_max polynomial regression models and find their prediction on a 
+# sequence of Terminal values:
+Terminal_range = range(College_2$Terminal)
+Terminal_seq = seq(from=Terminal_range[1], to=Terminal_range[2], length.out = 200)
+d_max = 10
+for(i in 1:d_max){
+  lm_i = lm(Outstate ~ poly(Terminal, i), data=College_2)
+  poly_predicted_values[[i]] = predict(lm_i, newdata = list(Terminal=Terminal_seq))
+  poly_mse[[i]] = sum(lm_i$residuals**2)/length(train.ind)
+}
+# Buil a dataframe out of the predicted values from the polynomial regression:
+Outstate_fitted_df = do.call(cbind.data.frame, poly_predicted_values)
+names(Outstate_fitted_df) = c("d1", "d2", "d3", "d4", "d5", "d6", "d7", "d8", "d9", "d10")
+Outstate_fitted_df$Terminal_seq = Terminal_seq
 
-## f)
+# Plot a few of the polynomial fits along with the original data:
+col = brewer.pal(n=8, name="Dark2")
+poly_plot = ggplot(data = Outstate_fitted_df, aes(x = Terminal_seq)) + 
+            geom_point(data=College_2, aes(x = Terminal, y=Outstate), color="blue") +
+            xlab("Terminal")
+str_degrees = names(Outstate_fitted_df)[1:10]
+poly_plot = poly_plot +
+      geom_line(aes(x = Terminal_seq, y = d1, colour="d1"), size=1.1) + 
+      geom_line(aes(x = Terminal_seq, y = d2, colour="d2"), size=1.1) +
+      geom_line(aes(x = Terminal_seq, y = d5, colour="d5"), size=1.1) +
+      geom_line(aes(x = Terminal_seq, y = d7, colour="d7"), size=1.1) +
+      geom_line(aes(x = Terminal_seq, y = d10, colour="d10"), size=1.1) +
+      scale_colour_manual("",
+                          breaks = c("d1", "d2", "d5", "d7", "d10"),
+                          values = c("d1"=col[[1]], "d2"=col[[2]], "d5"=col[[3]], 
+                                     "d7"=col[[4]], "d10"=col[[5]])) +
+      labs(title="Polynomial Regression, Outstate ~ Terminal")
+print(poly_plot)
+```
 
-## g)
+```{r task2d_2, eval=TRUE, echo=TRUE, fig.width=6, fig.height=5, fig.show="hold", results="hold"}
+# Performs LOOCV for degrees of freedom by setting cv=T:
+set.seed(123)  # Setting seed once more:
+smooth_spline_model = smooth.spline(x = College_2$Expend, y = College_2$Outstate, cv=T)
+smooth_predict = predict(smooth_spline_model,College_2$Expend)
+
+smooth_df = do.call(data.frame, smooth_predict)
+smooth_plot = ggplot(data=College_2, aes(x=Expend, y=Outstate)) + geom_point(size=1.1, col="blue") 
+smooth_plot = smooth_plot +
+              geom_line(data=smooth_df, aes(x=x, y=y, color="Smoothing\n spline"), size=1.1) +
+              scale_color_manual("", values = c("Smoothing\n spline" = "red")) + 
+              labs(title="Smoothing Splines, Outstate ~ Expend")
+print(smooth_plot)
+
+# Find the polynomial regression with the lowest MSE:
+min_poly_MSE = do.call(min, poly_mse)
+smoothing_MSE = mean((College_2$Outstate - smooth_predict$y)^2)
+```
+
+In the scatter plot of `Outstate` versus `Terminal` we have overlaid some of the polynomial regression lines for degrees $d = 1, ..., 10$. We observe increased twisting of the higher order polynomial regressions, but the second degree polynomial regression seems visually to fit closer to the data over a greater portion of the range of the covariate without suffering from too much flexibility.
+
+For the smoothing spline of `Outstate` versus `Expend` the degrees of freedom were chosen thorugh LOOCV, performed internally in the `smooth.spline` function by setting `cv=T`. This resulted in `r round(smooth_spline_model$df, 3)` degrees of freedom. 
+
+The lowest MSE for the polynomial regression of `Outstate` onto `Terminal` comes from the highest degree $d=10$, as expected by the increased flexibility, and comes out to `r min_poly_MSE`. For the smoothing spline regression of `Outstate` onto `Expend`, the MSE is `r smoothing_MSE`. 
+The fact that the MSE for `Outstate` onto `Terminal` using polynomial regression is more than three times greater than that of `Outstate` onto `Expend` using smoothing splines is not very surprising. Firstly, the correlation between `Outstate` and `Terminal` appears much lower than that of `Oustate` and `Expend`, indicating that regression lines would do better in the latter case. And secondly, smoothing splines have the ability to fit the data more locally than global polynomial regression can, and therefore one might expect a lower MSE from smoothing spline regression than from global polynomial regression. 
 
 
 # Problem 3
 
 ## a)
+i. False,$\quad$ ii. True,$\quad$ iii. True,$\quad$ iv. False.
 
 ## b)
+We will create a random forest model to predict the out-of-state tuition variable `Outstate`. First, we find the `mtry` parameter using cross validation.
+```{r}
+set.seed(1)
+control <- trainControl(method="cv", number=10, search="grid")
+
+tunegrid = data.frame("mtry"=c(1:17))
+rf_gridsearch <- train(Outstate ~ ., 
+                       data = college.train,
+                       method = 'rf',
+                       metric = 'RMSE',
+                       tuneGrid = tunegrid,
+                       trControl=control)
+best_mtry = unlist(rf_gridsearch$bestTune)
+```
+
+The best value for `mtry` was found to be `r best_mtry`. Now we fit a random forest model to the training set using the value of `mtry` found using cross validation, and find the test MSE.
+
+```{r}
+rf_college = randomForest(Outstate~., data=college.train, mtry=best_mtry,  ntree=500, importance=TRUE)
+rf_predicts = predict(rf_college, newdata=college.test[-9])
+mse_rf = mean(as.matrix((college.test[9]-rf_predicts))^2)
+```
+The test MSE was `r mse_rf`. 
+
+The random forest model was chosen for its accuracy, not for interpretability. It improves on a single pruned regression tree and on bagging by using many trees that are decorrelated by introducing a random limitation on which splits can be made in each tree.
+ompared to boosting, a random forest model has few tuning parameters. We need only tune `mtry`, the number of possible parameters the model can use in each split in the tree. In boosting, there are three tuning parameters: the number of trees, the shrinkage parameter, and the number of splits in each tree. 
+
+A disadvantage of random forest is that it is less intuitive and interpretable than a single pruned decision tree. However, compared to boosting, there is no large difference in interpretability. It is more time consuming to construct and tune the model than to construct a single decision tree, however at this scale it does not take more than a few minutes, which is reasonable. 
 
 ## c)
+Comparing the MSEs of the methods used in problem 1 and 3. The MSEs were `r mse_forw` for forward selection, `r mse_lasso` for the Lasso and `r mse_rf` for the random forest model. 
 
-## d)
 
-## e)
-
-## f)
-
-## g)
-
-## h)
+Random forest gives the lower test error by a large margin, however for interpretability either Lasso or forward selection would be preferred. The model found using the Lasso method has the fewest predictors, and so is the easiest to interpret among the two. 
 
 
 # Problem 4
 
 ## a)
 
+i. True,$\quad$ ii. True,$\quad$ iii. True,$\quad$ iv. True.
+
 ## b)
+```{r}
+id <- "1Fv6xwKLSZHldRAC1MrcK2mzdOYnbgv0E"  # google file ID
+d.diabetes <- dget(sprintf("https://docs.google.com/uc?id=%s&export=download", 
+    id))
+d.train = d.diabetes$ctrain
+d.test = d.diabetes$ctest
+```
+
+Converting the response variable to a factor.
+```{r}
+d.train$diabetes <- as.factor(d.train$diabetes)
+d.test$diabetes <- as.factor(d.test$diabetes)
+diab_test_predictors = d.test[-1]
+diab_test_responses = d.test[1]
+```
+
+Using cross-validation to find a good value of `cost` for a support vector classifier.
+```{r}
+costs = c(0.001, 0.01, 0.1, 1, 5, 10, 100)
+cv_svc = tune(svm, diabetes ~ ., data=d.train, kernel="linear", ranges=list(cost=costs))
+best_cost = cv_svc$best.parameters
+```
+Cross validation gave `r best_cost` as the optimal value of `cost`.
+
+Fitting a support vector classifier. 
+```{r}
+diab_svc = svm(data=d.train, diabetes ~ ., kernel="linear", cost=best_cost, scale=FALSE)
+```
+ 
+Fitting a support vector machine with radial boundary. First using cross validation to find parameters $\gamma$ and cost. 
+```{r}
+gammas = 10^seq(-7, 1, length=9)
+cv_svm = tune(svm, diabetes~., kernel="radial", ranges=list(cost=costs, gamma=gammas), data=d.train)
+
+best_cost_svm = cv_svm$best.parameters[1]
+best_gamma = cv_svm$best.parameters[2]
+diab_svm = cv_svm$best.model
+```
+The best performance was achieved with a cost of `r best_cost_svm` and $\gamma=$ `r best_gamma`. 
+
+
+Making predictions on the test set using the support vector classifier, and creating the confusion matrix.
+```{r}
+diab_svc_predictions = predict(diab_svc, diab_test_predictors)
+table_df_svc = data.frame("prediction"= diab_svc_predictions, "actual"=d.test$diabetes)
+confusion_svc = table("Predictions"=table_df_svc$prediction, "Actual"=table_df_svc$actual)
+```
+
+Making predictions on the test set using the support vector machine, and creating the confusion matrix.
+```{r}
+diab_svm_predictions = predict(diab_svm, diab_test_predictors)
+table_df_svm = data.frame("prediction"= diab_svm_predictions, "actual"=d.test$diabetes)
+confusion_svm = table("Predictions"=table_df_svm$prediction, "Actual"=table_df_svm$actual)
+```
+
+Get misclassification rates and print confusion matrices.
+```{r, results="hold"}
+misclass_svc = mean(table_df_svc$prediction != table_df_svc$actual)
+misclass_svm = mean(table_df_svm$prediction != table_df_svm$actual)
+
+confusion_svc
+confusion_svm
+```
+The misclassification rates were `r misclass_svc` for the support vector classifier, and `r misclass_svm`for the support vector machine.
+
+Finding the specificity and sensitivity of the two models when used on the test set. 
+```{r, results="hold"}
+sensitivity_svc = confusion_svc[2, 2]/(confusion_svc[1,2] + confusion_svc[2,2])
+specificity_svc = confusion_svc[1, 1]/(confusion_svc[1,1] + confusion_svc[2,1])
+
+sensitivity_svm = confusion_svm[2, 2]/(confusion_svm[1,2] + confusion_svm[2,2])
+specificity_svm = confusion_svm[1, 1]/(confusion_svm[1,1] + confusion_svm[2,1])
+
+sensitivity_svc
+specificity_svc
+
+sensitivity_svm
+specificity_svm
+```
+
+The sensitivities of both models are quite low. If the models are to be used for prediction, one would want a high sensitivity considering that undiagnosed diabetes has negative consequences on a person's health. The support vector classfier, which has a linear kernel, performed slightly better than the support vector machine with a radial kernel.
+
+The support vector machine had a higher specificity, however we would prefer using the support vector classifier.
 
 ## c)
+Here we assume that a classifier which makes it possible to see which variables affect the chance of a woman having diabetes is preferred. We pick logistic regression, as it gives interpretable results, does not assume normal distribution or equal variances, and does not assume equal number of datapoints in each class. 
+
+Fitting a logistic regression model to the training data.
+```{r}
+logreg_diab = glm(data=d.train, diabetes~., family="binomial")
+```
+
+Making predictions on the test set and creating the confusion table.
+```{r}
+logreg_pred = predict(logreg_diab, newdata=d.test, type="response")
+logreg_classification = logreg_pred > 0.5
+
+confusion_logreg = table("Prediction"=logreg_classification, "Actual"=d.test$diabetes==1)
+confusion_logreg
+```
+
+Calculating sensitivity and specificity of logistic regression.
+```{r, results="hold"}
+sensitivity_logreg = confusion_logreg[2, 2]/(confusion_logreg[1,2] + confusion_logreg[2,2])
+sensitivity_logreg
+
+specificity_logreg = confusion_logreg[1, 1]/(confusion_logreg[1,1] + confusion_logreg[2,1])
+specificity_logreg
+```
+
+Calculating misclassification rate.
+```{r}
+mean(logreg_classification*1 != d.test$diabetes)
+```
+Logistic regression has the advantage over SVMs that it gives an estimate of the probability of an observation belonging to a class, rather than just a predicted class. 
+
+A disadvantage of logistic regression is that it is more sensitive to outliers. Support vector machines are not sensitive to outliers since these often end up not affecting the decision boundary since they are not among the support vectors.
+
+Support vector machines are also at an advantage when the classes are well separated, as logistic regression runs into problems here. 
+
 
 ## d)
+i. False,$\quad$ ii. False,$\quad$ iii. True,$\quad$ iv. True.
+
+## e)
+The binomial deviance for an observation $i$, $D_i$ is defined as 
+$$
+D_i = -2\text{ log}\left(p_i^{I[y_i = 1]}(1- p_i)^{I[y_i = -1]}\right), \quad I[y_i = c] = \begin{cases} 1, \quad y_i = c,\\ 0, \quad \text{otherwise}.  \end{cases}
+$$
+
+where $p_i$ is the probability of observation $i$ belonging to the class $y_i = 1$, and we have coded the realizations of the random variable $Y_i$ as class $1$ if $y_i = 1$ and class $2$ if $y_i = -1$.  
+For simplicity we will work with the scaled version $D_i/2 = -I[y_i=1]\text{ log}(p_i) - I[y_i = -1]\text{ log}(1 - p_i)$. 
+
+In the logistic model, the probability $\text{Pr}(Y_i = 1) = p_i = \frac{\text{exp}(f(x_i))}{1 + \text{exp}(f(x_i))}$, 
+and correspondingly $\text{Pr}(Y_i = -1) = 1 - p_i = \frac{1}{1 + \text{exp}(f(x_i))}$. 
+In the regular logistic model, $f$ is linear in $x$ along with a constant term, giving $f(x) = \beta_0 + \beta^Tx$.
+
+We find that 
+\begin{align*}
+\text{log}(p_i) &= f(x_i) - \text{log}(1 + \text{exp}(f(x_i)))\\
+                &= f(x_i) - [\text{log}(1 + \text{exp}(-f(x_i))~) + f(x_i)]\\
+                &= -\text{log}(1 + \text{exp}(-f(x_i))).
+\end{align*}
+
+and $\text{log}(1- p_i) = -\text{log}(1 + \text{exp}(f(x_i))~)$. 
+Here we have used the identity $\text{log}(1 + \text{exp}(u)) = \text{log}(1 + \text{exp}(-u)) + u$.
+Thus we can conclude that 
+$$
+D_i/2 = I[y_i=1]\text{ log}(1 + \text{exp}(f(x_i))~) + I[y_i=-1]\text{ log}(1 + \text{exp}(f(x_i))~) = \text{log}(1 + \text{exp}(-y_if(x_i))~).
+$$
+This last equation shows that the loss function $\text{log}(1 + \text{exp}(-y_if(x_i))~)$ represents a scaled deviance for the $y = -1, 1$ encoding of a logistic regression model.
+
+
+# Problem 5
+```{r, eval=TRUE, echo=TRUE}
+id <- "1VfVCQvWt121UN39NXZ4aR9Dmsbj-p9OU"  # google file ID
+GeneData <- read.csv(sprintf("https://docs.google.com/uc?id=%s&export=download", 
+                             id), header = F)
+colnames(GeneData)[1:20] = paste(rep("H", 20), c(1:20), sep = "")
+colnames(GeneData)[21:40] = paste(rep("D", 20), c(1:20), sep = "")
+row.names(GeneData) = paste(rep("G", 1000), c(1:1000), sep = "")
+
+# Get the transpose of the data.frame in order to have observations as rows:
+GeneData = t(GeneData)
+```
+
+## a)
+```{r, eval=TRUE, echo=TRUE, fig.height=5, fig.width=10, fig.show="hold"}
+label_colors = c("red", "blue")  # Disease- and Healthy-color.
+colorLeaf = function(n){
+  if (is.leaf(n)){
+    a = attributes(n)
+    type = substring(a$label, 1, 1)
+    if (type == "D"){  # Found a disesase node
+      color = label_colors[[1]]
+    }
+    else {  # Found a healthy node
+      color = label_colors[[2]]
+    }
+    attr(n, "nodePar") = c(a$nodePar, lab.col=color)
+  }
+  return(n)
+}
+# Plotting Dendrograms with Euclidian Dissimillarity:
+Euclid_dist = dist(GeneData, method="euclidian")
+
+hc_Euclid_complete = hclust(Euclid_dist, method="complete")
+dend_Euclid_complete = as.dendrogram(hc_Euclid_complete, hang=0.1)
+dend_Euclid_complete = dendrapply(dend_Euclid_complete, colorLeaf)
+
+hc_Euclid_average = hclust(Euclid_dist, method="average")
+dend_Euclid_average = as.dendrogram(hc_Euclid_average, hang=0.1)
+dend_Euclid_average = dendrapply(dend_Euclid_average, colorLeaf)
+
+hc_Euclid_single = hclust(Euclid_dist, method="single")
+dend_Euclid_single = as.dendrogram(hc_Euclid_single, hang=0.1)
+dend_Euclid_single = dendrapply(dend_Euclid_single, colorLeaf)
+
+# Plot with colored leaf nodes:
+par(mfrow=c(1, 3))
+plot(dend_Euclid_complete, main="Complete Grouping", ylim=c(38, 52),
+     ylab="Dissimillar Euclidian Height")
+plot(dend_Euclid_average, main="Average Grouping", ylim=c(38, 50))
+plot(dend_Euclid_single, main="Single Grouping", ylim=c(38, 47))
+### TODO: Nevne i teksten i .Rmd-dokumentet at Blue: Frisk, Red: Syk.
+
+# Plotting Dendrograms with Correlation Dissimillarity:
+Corr_dist = as.dist(1.0 - cor(t(GeneData), t(GeneData)))
+
+hc_Corr_complete = hclust(Corr_dist, method="complete")
+dend_Corr_complete = as.dendrogram(hc_Corr_complete, hang=0.1)
+dend_Corr_complete = dendrapply(dend_Corr_complete, colorLeaf)
+
+hc_Corr_average = hclust(Corr_dist, method="average")
+dend_Corr_average = as.dendrogram(hc_Corr_average, hang=0.1)
+dend_Corr_average = dendrapply(dend_Corr_average, colorLeaf)
+
+hc_Corr_single = hclust(Corr_dist, method="single")
+dend_Corr_single = as.dendrogram(hc_Corr_single, hang=0.1)
+dend_Corr_single = dendrapply(dend_Corr_single, colorLeaf)
+
+par(mfrow=c(1, 3))
+plot(dend_Corr_complete, main="Complete Grouping", ylim=c(0.4, 1.2), 
+     ylab="Dissimillar Correlation Height")
+plot(dend_Corr_average, main="Average Grouping", ylim=c(0.5, 1.05))
+plot(dend_Corr_single, main="Single Grouping", ylim=c(0.5, 1.0))
+```
+In the above plots, all leaf-nodes have been colored according to their true class, as either blue for healthy, or red for diseased. And simply by looking at the dendrograms for the `GeneData` it seems that the Euclidian dissimilarity measure does a better job of seperating the two different classes than the Correlation dissimilarity measure. In the Correlation dendrograms, we see good seperation of the two tissues on sub-branches, but at higher level cuts the two tissue groups are intertwined. This will be investigated more quantitatively in the next sub-problem.
+
+## b)
+```{r, eval=TRUE, echo=TRUE, fig.height=5, fig.width=10, fig.show="hold", results="hold"}
+tree_confusion_matrix = function(cut_list){
+  tissues = names(cut_list)
+  groups = matrix(rep(0L, 4), nrow=2, ncol=2)
+  # Count groups of Healthy and Disease tissues:
+  for (i in 1:length(cut_list)) {
+    # Place the classified group in correct slot in matrix:
+    if(substring(tissues[[i]], 1, 1) == "H") {  # Found a Healthy Leaf.
+      col = 1
+      row = cut_list[[i]]
+      groups[[row, col]] = groups[[row, col]] + 1
+    }
+    else{  # Found a Disease Leaf. 
+      col = 2
+      row = cut_list[[i]]
+      groups[[row, col]] = groups[[row, col]] + 1
+    }
+  }
+  # Find which of the two groups have the maximum healthy- and 
+  # disease- labels, and name that the corresponding prediction.
+  health_group = 0L; disease_group = 0L
+  max_healthy = which.max(groups[, 1])
+  if (groups[[max_healthy, 2]] <= groups[[max_healthy, 1]]){
+    health_group = max_healthy
+    disease_group = (max_healthy %% 2) + 1L
+  }
+  else{
+    disease_group = max_healthy
+    health_group = (max_healthy %% 2) + 1L
+  }
+  confusion_matrix = matrix(rep(0L, 4), nrow=2, ncol=2)
+  # Fill inn the Health column:
+  confusion_matrix[[1, 1]] = groups[[health_group, 1]]
+  confusion_matrix[[2, 1]] = groups[[disease_group, 1]]
+  # Fill in the Disease column:
+  confusion_matrix[[1, 2]] = groups[[health_group, 2]]
+  confusion_matrix[[2, 2]] = groups[[disease_group, 2]]
+  colnames(confusion_matrix) = c("Healthy, Actual", "Disease, Actual")
+  rownames(confusion_matrix) = c("Healthy, Pred.", "Disease, Pred.")
+  return(confusion_matrix)
+}
+
+# Find Euclidian cuts:
+Euclid_complete_cut = cutree(hc_Euclid_complete, k=2)
+Euclid_average_cut = cutree(hc_Euclid_average, k=2)
+Euclid_single_cut = cutree(hc_Euclid_single, k=2)
+
+# Generate Euclidian confusion matrices:
+Euclid_complete_cm = tree_confusion_matrix(Euclid_complete_cut)
+Euclid_average_cm = tree_confusion_matrix(Euclid_average_cut)
+Euclid_single_cm = tree_confusion_matrix(Euclid_single_cut)
+
+cat("Euclidian Confusion matrices:\n")
+cat("\nComplete linkage:\n")
+print(Euclid_complete_cm)
+cat("\nAverage linkage:\n")
+print(Euclid_average_cm)
+cat("\nSingle linkage:\n")
+print(Euclid_single_cm)
+
+# Find Correlation cuts:
+Corr_complete_cut = cutree(hc_Corr_complete, k=2)
+Corr_average_cut = cutree(hc_Corr_average, k=2)
+Corr_single_cut = cutree(hc_Corr_single, k=2)
+
+# Generate correlation confusion matrices:
+Corr_complete_cm = tree_confusion_matrix(Corr_complete_cut)
+Corr_average_cm = tree_confusion_matrix(Corr_average_cut)
+Corr_single_cm = tree_confusion_matrix(Corr_single_cut)
+
+cat("\nCorrelation Confusion matrices:\n")
+cat("\nComplete linkage:\n")
+print(Corr_complete_cm)
+cat("\nAverage linkage:\n")
+print(Corr_average_cm)
+cat("\nSingle linkage:\n")
+print(Corr_single_cm)
+```
+From the above confusion matrices, we observe that the Euclidian dissimilarity measure performs very well for all three linkage types, and perfectly seperates the two tissue groups. For the Correlation dissimilarity measure on the other hand, there is clear tendency to group together healty tissue with disease tissue. All the disease tissue is combined into one group, but with the different linkage types they are joined by different numbers of healty tissue samples. The complete linkage type performs the best, with half of the healty tissue types correctly placed in a group by themselves. For the single linkage type, only a single healthy tissue type is classified as from a different group than the other $39$ tissue samples.
+
+## c)
+Looking at the optimization problem that we need to solve for Principal Component Analysis (PCA) we have
+
+\begin{equation*}
+\max_{\phi_{11},...,\phi_{p1}} \Big\{ \frac{1}{n}\sum_{i=1}^n \Big( \sum_{j=1}^p \phi_{j1}x_{ij} \Big)^2  \Big\} \quad \text{subject to } \sum_{j=1}^p\phi_{j1}^2 = 1.
+\end{equation*}
+
+In this problem, $\phi$ is a unit length vector in $\mathbb{R}^p$, describing the weigthed sum of covariates with the greatest variance. This means that $p$ is the number of covariates, or predictive variables, excluding the intercept. In PCA it is also not uncommon to standardize measurements to have zero mean and variance one, to avoid inflation of variance in certain directions of the covariate-space due to different units being used for measurement and the like. Naturally from this explanation, $n$ is the number of measurements of the $p$ covariates. 
+
+This problem can be framed in terms of matrices to gain additional insight. For a given set of $p$ covariates $x = [x_1, x_2, ..., x_p]^T$ and $n$ measurements gathered in an $n\times p$ data matrix $X$, that has been standardized to have zero means and variance one along its columns, we can construct the positive semi-definite empirical correlation matrix between these covariates as $C = \frac{1}{n-1}X^T X$. Then we have that the weighted sum of covariates $\phi^T x$ with the greatest variance, is the eigenvector of $C$ with the greatest eigenvalue $\lambda_1$. This due to the fact that Var$(\phi^T x)$ = $\phi^T \text{Var}(x)\phi$ = $\phi^T C \phi$, and this scalar is maxmized for $C\phi = \lambda_1\phi$ when $C$ is positive semidefinite and $||\phi||_2 = 1$.
+
+Now given that a solution vector $\phi$ to the above optimization problem has been found, the first principal component scores are defined as 
+
+$$
+z_{i1} = X_{i1}\phi_{11} + X_{i2}\phi_{21} + ... + x_{ip}\phi_{p1}, \quad i \in [1, n].  
+$$
+
+
+## d)
+```{r, eval=TRUE, echo=TRUE, fig.height=4, fig.width=8, fig.show="hold", results="hold"}
+cat("Range of means for gene expressions:\n", range(apply(GeneData, 2, mean)), "\n")
+cat("Range of variance for gene expressions:\n", range(apply(GeneData, 2, var)), "\n")
+
+pca_GeneData = prcomp(GeneData, center=T, scale=T)
+
+pcs_df = as.data.frame(pca_GeneData$x)
+pcs_df$tissue = c(rep("H", 20), rep("D", 20))
+
+pca_plot = ggplot(data=pcs_df, aes(x=PC1, y=PC2, color=tissue)) + geom_point(size=3.0) +
+           labs(title="GeneData, PC2 versus PC1, Healthy and Disease Tissue")
+print(pca_plot)
+
+# Find porportion of variance explained:
+pca_GD_var = pca_GeneData$sdev^2
+variance_portion = pca_GD_var/sum(pca_GD_var)
+print("Proportion of Variance explained by first five principal components:")
+print(sum(variance_portion[1:5]))
+```
+In performing principal component analysis on our `GenaData` dataset we have chosen to normalize the covariates to have zero mean and variance one. This is done even thoughpresumably gene expression is measured in the same units for different genes, as we see some spread in the means and variance of the gene expression of different genes, as shown in the code printout above.
+
+We observe a clear seperation of the the two different tissue types from the scatter plot of principal component 1 (PC1) versus pricipal component 2 (PC2), suggesting that PC1 captures an important seperating line in the space of the thousand gene expressions measured.
+The amount of variance explained by the first five PC's is found to be $21.1\%$ when rounded to one digit. 
+
+## e)
+```{r, eval=TRUE, echo=TRUE, results="hold"}
+#  Construct imperical Correlation matrix for GeneData:
+# First scale to zero mean and variance one:
+scaled_GeneData = scale(GeneData)
+scaled_Corr = (1.0/(nrow(GeneData)-1))*(t(scaled_GeneData) %*% scaled_GeneData)
+
+# Retrieve the first column of the rotation matrix, the first eigenvector of scaled_Corr:
+phi_1 = pca_GeneData$rotation[, 1]
+
+n = 150
+reduced_phi_1 = rep(0.0, ncol(scaled_GeneData))
+maxn_var_indices = order(abs(phi_1), decreasing = T)[1:n]
+reduced_phi_1[maxn_var_indices] = phi_1[maxn_var_indices]
+
+reduced_var_proportion = (t(reduced_phi_1) %*% scaled_Corr %*% reduced_phi_1) / sum(pca_GD_var)
+cat("Proportion of variance explained by the", n, "highest magnintude components of PC1:\n",
+    reduced_var_proportion, "\n")
+cat("These genes are:\n")
+print(names(phi_1[maxn_var_indices])) 
+```
+By using only 150 out of 1000 the thousand measured genes in the first PC, we account for 4.8% of the variation in the scaled GeneData. This is more than half of the variance explained by PC1 when using all 1000 genes, and thus indicates that we have found a subset of genes which vary across the two   tissue groups. The top 10 genes that account for the most variation are G502, G589, G565, G590, G600, G551, G593, G538, G584 and G509. These are all in the range G-[502, 600].
+
+
+## f)
+```{r, eval=TRUE, echo=TRUE, fig.height=4, fig.width=8, fig.show="hold", results="hold"}
+kmeans_GeneData = kmeans(GeneData, centers=2, nstart=20)
+pcs_df$cluster = as.factor(kmeans_GeneData$cluster)
+
+#  Zero error-rate by K-means clustering:
+k_means_plot = ggplot(pcs_df, aes(x=PC1, y=PC2, shape=cluster, color=tissue)) + geom_point(size=3.0) + 
+                      labs(title="GeneData, PC1 vs. PC2. Cluster 1 and 2 from K-means")
+print(k_means_plot)
+```
+From the above plot where tissue type is denoted by color, and cluster from the K-means algorithm is denoted as different symbols, we see from visual investigation that the error rate for K-means when it comes to seperating the two tissue types is $0\%$.
